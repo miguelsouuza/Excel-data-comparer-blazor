@@ -1,0 +1,34 @@
+﻿@inject CompareService _compareService
+@inject AppState _appState
+
+@page "/compare"
+
+@if (resultado?.Diferencas != null)
+{
+    @foreach (var d in resultado.Diferencas)
+    {
+        <tr>
+            <td>@d.Id</td>
+            <td>@d.Campo</td>
+            <td>@d.ValorA</td>
+            <td>@d.ValorB</td>
+        </tr>
+    }
+}
+
+@code {
+    CompareResult resultado = new();
+    protected override void OnInitialized()
+    {
+        if (_appState.BaseA == null || _appState.BaseB == null)
+            return;
+
+
+        resultado = _compareService.Compare(
+            _appState.BaseA,
+            _appState.BaseB,
+            "Id",
+            new List<string> { "Nome" }
+        );
+    }
+}

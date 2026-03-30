@@ -1,0 +1,50 @@
+﻿@page "/"
+@rendermode InteractiveServer
+@inject FileService _fileService
+@inject CompareService _compareService
+@inject AppState _appState
+@inject NavigationManager nav
+
+
+<InputFile OnChange="UploadA" />
+<InputFile OnChange="UploadB" />
+
+<p>Base A: @(baseA != null ? "Carregado ✅" : "Não carregado")</p>
+<p>Base B: @(baseB != null ? "Carregado ✅" : "Não carregado")</p>
+
+<button @onclick="IrParaComparacao">Comparar</button>
+
+@code{
+
+    private List<RegistroGenerico> baseA;
+    private List<RegistroGenerico> baseB;
+
+
+    private async Task UploadA(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+
+        using var stream = file.OpenReadStream(50 * 1024 * 1024);
+
+        baseA = await _fileService.CarregarArquivoAsync(stream, file.Name);
+        _appState.BaseA = baseA;
+    }
+
+    private async Task UploadB(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+
+        using var stream = file.OpenReadStream(50 * 1024 * 1024);
+
+        baseB = await _fileService.CarregarArquivoAsync(stream, file.Name);
+        _appState.BaseB = baseB;     
+    }
+
+    private void IrParaComparacao()
+    {
+        if (_appState.BaseA == null || _appState.BaseB == null)
+            return;
+        
+        nav.NavigateTo("/compare");
+    }
+}
