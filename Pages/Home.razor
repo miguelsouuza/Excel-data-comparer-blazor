@@ -1,24 +1,95 @@
 ﻿@page "/"
 @rendermode InteractiveServer
+
 @inject FileService _fileService
-@inject CompareService _compareService
 @inject AppState _appState
 @inject NavigationManager nav
 
+<div class="d-flex gap-4">
 
-<InputFile OnChange="UploadA" />
-<InputFile OnChange="UploadB" />
+    <div>
+        <InputFile OnChange="UploadA" />
+        <p>Base A: @(baseA != null && baseA.Any() ? "Carregado ✅" : "Não carregado")</p>
+    </div>
 
-<p>Base A: @(baseA != null ? "Carregado ✅" : "Não carregado")</p>
-<p>Base B: @(baseB != null ? "Carregado ✅" : "Não carregado")</p>
+    <div>
+        <InputFile OnChange="UploadB" />
+        <p>Base B: @(baseB != null && baseB.Any() ? "Carregado ✅" : "Não carregado")</p>
+    </div>
 
-<button @onclick="IrParaComparacao">Comparar</button>
+</div>
 
-@code{
+<button @onclick="IrParaComparacao" class="mt-3">Comparar</button>
+<div class="d-flex gap-4">
+    @if (baseA != null && baseA.Any())
+    {
+        <div>
+            <h4>Selecionar ID</h4>
 
-    private List<RegistroGenerico> baseA;
-    private List<RegistroGenerico> baseB;
+            <select @bind="colunaA">
+                <option value="">Selecione...</option>
+                @foreach (var col in baseA.First().Campos.Keys)
+                {
+                    <option value="@col">@col</option>
+                }
+            </select>
+        </div>
+        <div>
+            <h4>Mapeamento de Colunas</h4>
 
+            @foreach (var colA in baseA.First().Campos.Keys)
+            {
+                <div class="d-flex gap-2 mb-1">
+                    <span style="width:200px">@colA</span>
+
+                    <select @onchange="(e) => Mapear(colA, e.Value?.ToString())">
+                        <option value="">-- Mapear com --</option>
+                        @if (baseB != null && baseB.Any())
+                        {
+                            @foreach (var colB in baseB.First().Campos.Keys)
+                            {
+                                <option value="@colB">@colB</option>
+                            }
+                        }
+                    </select>
+                </div>
+            }
+        </div>
+    }
+
+    @if (baseB != null && baseB.Any())
+    {
+        <div>
+            <h4>Selecionar ID</h4>
+
+            <select @bind="colunaB">
+                <option value="">Selecione...</option>
+                @foreach (var col in baseB.First().Campos.Keys)
+                {
+                    <option value="@col">@col</option>
+                }
+            </select>
+        </div>
+    }
+</div>
+
+@if (baseA != null && baseA.Any())
+{
+    <TableComponent Base="baseA" Title="Preview Base A" />
+}
+
+@if (baseB != null && baseB.Any())
+{
+    <TableComponent Base="baseB" Title="Preview Base B" />
+}
+
+@code {
+    private string colunaB = string.Empty;
+    private string colunaA = string.Empty;
+    private Dictionary<string, string> mapeamento = new Dictionary<string, string>();
+
+    private List<RegistroGenerico> baseA = new();
+    private List<RegistroGenerico> baseB = new();
 
     private async Task UploadA(InputFileChangeEventArgs e)
     {
@@ -37,14 +108,37 @@
         using var stream = file.OpenReadStream(50 * 1024 * 1024);
 
         baseB = await _fileService.CarregarArquivoAsync(stream, file.Name);
-        _appState.BaseB = baseB;     
+        _appState.BaseB = baseB;
     }
 
     private void IrParaComparacao()
     {
-        if (_appState.BaseA == null || _appState.BaseB == null)
+        if (_appState.BaseA == null || !_appState.BaseA.Any() ||
+            _appState.BaseB == null || !_appState.BaseB.Any())
             return;
-        
+
+        if (string.IsNullOrWhiteSpace(colunaA) || string.IsNullOrWhiteSpace(colunaB))
+            return;
+
+        if (!mapeamento.Any())
+            return;
+
+        _appState.ColunaA = colunaA;
+        _appState.ColunaB = colunaA;
+        _appState.Mapeamento = mapeamento;
+
         nav.NavigateTo("/compare");
+    }
+    private void Mapear(string colunaA, string? colunaB)
+    {
+        if (string.IsNullOrWhiteSpace(colunaB))
+        {
+            if (mapeamento.ContainsKey(colunaA))
+                mapeamento.Remove(colunaA);
+
+            return;
+        }
+
+        mapeamento[colunaA] = colunaB;
     }
 }

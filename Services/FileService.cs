@@ -1,8 +1,29 @@
 ﻿using DataComparer.Services;
 using OfficeOpenXml;
 
-public class FileService : Helpers
+public class FileService : Helpers, IFileService
 {
+    // 🔥 Mapeamento de colunas (PADRÃO)
+    private string MapearColuna(string coluna)
+    {
+        coluna = coluna.ToUpper().Trim();
+
+        return coluna switch
+        {
+            "CNESID" => "CNES",
+            "CÓDIGO CNES" => "CNES",
+            "CODIGO CNES" => "CNES",
+
+            "NM_CLIENTE" => "NOME",
+            "NOME CLIENTE" => "NOME",
+
+            "GOVERNMENTID" => "CNPJ",
+            "CPF_CNPJ" => "CNPJ",
+
+            _ => coluna
+        };
+    }
+
     private async Task<List<RegistroGenerico>> CarregarTxt(Stream stream)
     {
         var lista = new List<RegistroGenerico>();
@@ -22,7 +43,7 @@ public class FileService : Helpers
 
         var headers = linhas[0]
             .Split(separador)
-            .Select(h => Normalizar(h))
+            .Select(h => MapearColuna(Normalizar(h)))
             .ToArray();
 
         foreach (var linhaRow in linhas.Skip(1))
@@ -38,13 +59,18 @@ public class FileService : Helpers
             var registro = new RegistroGenerico();
 
             for (int i = 0; i < headers.Length; i++)
-                registro.Campos[headers[i]] = valores[i]?.Trim() ?? "";
+            {
+                var valor = valores[i]?.Trim() ?? "";
+
+                registro.Campos[headers[i]] = valor;
+            }
 
             lista.Add(registro);
         }
 
         return lista;
     }
+
     private async Task<List<RegistroGenerico>> CarregarExcel(Stream stream)
     {
         var lista = new List<RegistroGenerico>();
@@ -67,7 +93,12 @@ public class FileService : Helpers
         var headers = new List<string>();
 
         for (int col = 1; col <= colunas; col++)
-            headers.Add(Normalizar(ws.Cells[1, col].Text));
+        {
+            var headerOriginal = ws.Cells[1, col].Text;
+            var headerNormalizado = MapearColuna(Normalizar(headerOriginal));
+
+            headers.Add(headerNormalizado);
+        }
 
         for (int lin = 2; lin <= linhas; lin++)
         {
@@ -76,9 +107,9 @@ public class FileService : Helpers
             for (int col = 1; col <= colunas; col++)
             {
                 var nomeColuna = headers[col - 1];
-                var valor = ws.Cells[lin, col].Text;
+                var valor = ws.Cells[lin, col].Text?.Trim() ?? "";
 
-                registro.Campos[nomeColuna] = valor?.Trim() ?? "";
+                registro.Campos[nomeColuna] = valor;
             }
 
             lista.Add(registro);
@@ -98,5 +129,4 @@ public class FileService : Helpers
             _ => throw new Exception("Formato não suportado")
         };
     }
-
 }

@@ -1,34 +1,86 @@
-﻿@inject CompareService _compareService
+﻿@inject ICompareService _compareService
 @inject AppState _appState
+@rendermode InteractiveServer
 
 @page "/compare"
 
-@if (resultado?.Diferencas != null)
+<h3>Resultado da Comparação</h3>
+
+@if (resultado == null)
 {
-    @foreach (var d in resultado.Diferencas)
+    <p>Carregando...</p>
+}
+else
+{
+    <p><b>Divergências:</b> @resultado.Diferencas?.Count</p>
+    <p><b>Registros em ambas:</b> @resultado.EmAmbas</p>
+    <p><b>Apenas na A:</b> @resultado.ApenasA?.Count</p>
+    <p><b>Apenas na B:</b> @resultado.ApenasB?.Count</p>
+
+    @if (resultado.Erros != null && resultado.Erros.Any())
     {
-        <tr>
-            <td>@d.Id</td>
-            <td>@d.Campo</td>
-            <td>@d.ValorA</td>
-            <td>@d.ValorB</td>
-        </tr>
+        <h4>Erros</h4>
+        <ul>
+            @foreach (var erro in resultado.Erros)
+            {
+                <li>@erro</li>
+            }
+        </ul>
+    }
+
+    @if (resultado.Diferencas != null && resultado.Diferencas.Any())
+    {
+        <table border="1">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Campo</th>
+                    <th>Valor A</th>
+                    <th>Valor B</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var d in resultado.Diferencas)
+                {
+                    <tr>
+                        <td>@d.Id</td>
+                        <td>@d.Campo</td>
+                        <td>@d.ValorA</td>
+                        <td>@d.ValorB</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <p>Nenhuma divergência encontrada</p>
     }
 }
 
 @code {
-    CompareResult resultado = new();
+    private CompareResult resultado;
+
     protected override void OnInitialized()
     {
-        if (_appState.BaseA == null || _appState.BaseB == null)
+        if (_appState.BaseA == null ||
+            _appState.BaseB == null ||
+            string.IsNullOrWhiteSpace(_appState.ColunaA) ||
+            _appState.Mapeamento == null)
+        {
+            resultado = new CompareResult
+            {
+                Erros = new List<string> { "Dados insuficientes para comparação" }
+            };
             return;
-
+        }
 
         resultado = _compareService.Compare(
             _appState.BaseA,
             _appState.BaseB,
-            "Id",
-            new List<string> { "Nome" }
+            _appState.ColunaA,
+            _appState.ColunaB,
+            _appState.Mapeamento
         );
     }
 }

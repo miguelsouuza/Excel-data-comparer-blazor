@@ -1,0 +1,32 @@
+﻿<h4>@Title</h4>
+
+<table>
+    <thead>
+        <tr>
+            @foreach (var col in Base.First().Campos.Keys)
+            {
+                <th>@col</th>
+            }
+        </tr>
+    </thead>
+
+    <tbody>
+        @foreach (var row in Base.Take(5))
+        {
+            <tr>
+                @foreach (var col in row.Campos.Values)
+                {
+                    <td>@col</td>
+                }
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    [Parameter]
+    public List<RegistroGenerico> Base { get; set; } = new();
+    [Parameter]
+    public string? Title { get; set; }
+
+}
