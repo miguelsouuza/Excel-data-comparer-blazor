@@ -1,7 +1,7 @@
 ﻿public class AppState
 {
-    public List<RegistroGenerico> BaseA { get; set; } = new List<RegistroGenerico>();
-    public List<RegistroGenerico> BaseB { get; set; } = new List<RegistroGenerico>();
+    public List<GenericRegistration> BaseA { get; set; } = new List<GenericRegistration>();
+    public List<GenericRegistration> BaseB { get; set; } = new List<GenericRegistration>();
     public string ColunaId { get; set; } = string.Empty;
     public string ColunaA { get; set; } = string.Empty;
     public string ColunaB { get; set; } = string.Empty;

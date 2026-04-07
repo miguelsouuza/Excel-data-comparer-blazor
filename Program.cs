@@ -8,8 +8,10 @@ builder.Services.AddRazorComponents()
 builder.Services.AddSingleton<AppState>();
 builder.Services.AddScoped<CompareService>();
 builder.Services.AddScoped<FileService>();
+builder.Services.AddScoped<AutoMappingService>();
 builder.Services.AddScoped<ICompareService, CompareService>();
 builder.Services.AddScoped<IFileService, FileService>();
+builder.Services.AddScoped<IAutoMappingService, AutoMappingService>();
 
 var app = builder.Build();
 

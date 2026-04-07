@@ -1,17 +1,22 @@
 ﻿using DataComparer.Services;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 
 public class CompareService : Helpers, ICompareService
 {
     public CompareResult Compare(
-    List<RegistroGenerico> baseA,
-    List<RegistroGenerico> baseB,
-    string colunaIdA,
-    string colunaIdB,
-    Dictionary<string, string> mapeamento)
+        List<GenericRegistration> baseA,
+        List<GenericRegistration> baseB,
+        string colunaIdA,
+        string colunaIdB,
+        Dictionary<string, string> mapeamento)
     {
-        var diferencas = new List<Diferenca>();
+        var resultado = new CompareResult();
+        var diferencas = new List<Difference>();
         var erros = new List<string>();
 
+        // 🔴 Validações iniciais
         if (baseA == null || !baseA.Any())
             erros.Add("Base A está vazia");
 
@@ -33,13 +38,26 @@ public class CompareService : Helpers, ICompareService
             };
         }
 
-        // 🔹 Criar índice da base B
+        // 🔴 Detectar IDs duplicados na Base B
+        var duplicadosB = baseB
+            .Where(x => x.Campos.ContainsKey(colunaIdB))
+            .GroupBy(x => Normalize(x.Campos[colunaIdB]))
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)
+            .ToList();
+
+        if (duplicadosB.Any())
+        {
+            erros.Add($"IDs duplicados na Base B: {string.Join(", ", duplicadosB)}");
+        }
+
+        // 🔹 Criar índice da Base B
         var dictB = baseB
             .Where(x => x.Campos.ContainsKey(colunaIdB))
             .Select(x => new
             {
                 Item = x,
-                Id = Normalizar(x.Campos[colunaIdB])
+                Id = Normalize(x.Campos[colunaIdB])
             })
             .Where(x => !string.IsNullOrEmpty(x.Id))
             .GroupBy(x => x.Id)
@@ -49,9 +67,13 @@ public class CompareService : Helpers, ICompareService
         foreach (var itemA in baseA)
         {
             if (!itemA.Campos.ContainsKey(colunaIdA))
+            {
+                erros.Add("Registro sem ID na Base A");
                 continue;
+            }
 
-            var id = Normalizar(itemA.Campos[colunaIdA]);
+            var idOriginal = itemA.Campos[colunaIdA];
+            var id = Normalize(idOriginal);
 
             if (string.IsNullOrEmpty(id))
                 continue;
@@ -59,29 +81,31 @@ public class CompareService : Helpers, ICompareService
             if (!dictB.ContainsKey(id))
                 continue;
 
-            var itemBComparar = dictB[id];
+            var itemB = dictB[id];
 
             foreach (var map in mapeamento)
             {
                 var colunaA = map.Key;
                 var colunaB = map.Value;
 
-                var valorA = itemA.Campos.ContainsKey(colunaA)
-                    ? Normalizar(itemA.Campos[colunaA])
-                    : "";
+                // 🔹 Pegando valores com TryGetValue (melhor performance)
+                itemA.Campos.TryGetValue(colunaA, out var valorAOriginal);
+                itemB.Campos.TryGetValue(colunaB, out var valorBOriginal);
 
-                var valorB = itemBComparar.Campos.ContainsKey(colunaB)
-                    ? Normalizar(itemBComparar.Campos[colunaB])
-                    : "";
+                valorAOriginal ??= "";
+                valorBOriginal ??= "";
 
-                if (!valorA.Equals(valorB, StringComparison.OrdinalIgnoreCase))
+                var valorANormalizado = Normalize(valorAOriginal);
+                var valorBNormalizado = Normalize(valorBOriginal);
+
+                if (!valorANormalizado.Equals(valorBNormalizado, StringComparison.OrdinalIgnoreCase))
                 {
-                    diferencas.Add(new Diferenca
+                    diferencas.Add(new Difference
                     {
-                        Id = id,
+                        Id = idOriginal, // 👈 mantém valor real
                         Campo = $"{colunaA} vs {colunaB}",
-                        ValorA = valorA,
-                        ValorB = valorB
+                        ValorA = valorAOriginal,
+                        ValorB = valorBOriginal
                     });
                 }
             }
@@ -90,16 +114,17 @@ public class CompareService : Helpers, ICompareService
         // 🔹 Sets de IDs
         var idsA = baseA
             .Where(x => x.Campos.ContainsKey(colunaIdA))
-            .Select(x => Normalizar(x.Campos[colunaIdA]))
+            .Select(x => Normalize(x.Campos[colunaIdA]))
             .Where(x => !string.IsNullOrEmpty(x))
             .ToHashSet();
 
         var idsB = baseB
             .Where(x => x.Campos.ContainsKey(colunaIdB))
-            .Select(x => Normalizar(x.Campos[colunaIdB]))
+            .Select(x => Normalize(x.Campos[colunaIdB]))
             .Where(x => !string.IsNullOrEmpty(x))
             .ToHashSet();
 
+        // 🔹 Resultado final
         return new CompareResult
         {
             Diferencas = diferencas,

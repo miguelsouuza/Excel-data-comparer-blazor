@@ -1,6 +1,6 @@
 ﻿
 
-public class Diferenca
+public class Difference
 {
     public string Id { get; set; }
     public string Campo { get; set; } = string.Empty;

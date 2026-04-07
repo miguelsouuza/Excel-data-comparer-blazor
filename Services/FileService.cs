@@ -24,9 +24,9 @@ public class FileService : Helpers, IFileService
         };
     }
 
-    private async Task<List<RegistroGenerico>> CarregarTxt(Stream stream)
+    private async Task<List<GenericRegistration>> CarregarTxt(Stream stream)
     {
-        var lista = new List<RegistroGenerico>();
+        var lista = new List<GenericRegistration>();
 
         using var reader = new StreamReader(stream);
         var linhas = new List<string>();
@@ -39,11 +39,11 @@ public class FileService : Helpers, IFileService
 
         if (linhas.Count == 0) return lista;
 
-        var separador = DetectarSeparador(linhas[0]);
+        var separador = DetectSeparator(linhas[0]);
 
         var headers = linhas[0]
             .Split(separador)
-            .Select(h => MapearColuna(Normalizar(h)))
+            .Select(h => MapearColuna(Normalize(h)))
             .ToArray();
 
         foreach (var linhaRow in linhas.Skip(1))
@@ -56,7 +56,7 @@ public class FileService : Helpers, IFileService
             if (valores.Length != headers.Length)
                 continue;
 
-            var registro = new RegistroGenerico();
+            var registro = new GenericRegistration();
 
             for (int i = 0; i < headers.Length; i++)
             {
@@ -71,9 +71,9 @@ public class FileService : Helpers, IFileService
         return lista;
     }
 
-    private async Task<List<RegistroGenerico>> CarregarExcel(Stream stream)
+    private async Task<List<GenericRegistration>> CarregarExcel(Stream stream)
     {
-        var lista = new List<RegistroGenerico>();
+        var lista = new List<GenericRegistration>();
 
         using var memoryStream = new MemoryStream();
         await stream.CopyToAsync(memoryStream);
@@ -95,14 +95,14 @@ public class FileService : Helpers, IFileService
         for (int col = 1; col <= colunas; col++)
         {
             var headerOriginal = ws.Cells[1, col].Text;
-            var headerNormalizado = MapearColuna(Normalizar(headerOriginal));
+            var headerNormalizado = MapearColuna(Normalize(headerOriginal));
 
             headers.Add(headerNormalizado);
         }
 
         for (int lin = 2; lin <= linhas; lin++)
         {
-            var registro = new RegistroGenerico();
+            var registro = new GenericRegistration();
 
             for (int col = 1; col <= colunas; col++)
             {
@@ -118,7 +118,7 @@ public class FileService : Helpers, IFileService
         return lista;
     }
 
-    public async Task<List<RegistroGenerico>> CarregarArquivoAsync(Stream stream, string fileName)
+    public async Task<List<GenericRegistration>> CarregarArquivoAsync(Stream stream, string fileName)
     {
         var ext = Path.GetExtension(fileName).ToLower();
 

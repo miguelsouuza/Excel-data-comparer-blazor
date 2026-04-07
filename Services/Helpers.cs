@@ -2,7 +2,7 @@
 {
     public class Helpers
     {
-        protected static char DetectarSeparador(string linha)
+        protected static char DetectSeparator(string linha)
         {
             if (linha.Contains(";")) return ';';
             if (linha.Contains("|")) return '|';
@@ -10,10 +10,13 @@
 
             return ';'; // padrão
         }
-        protected static string Normalizar(string texto)
+        protected static string Normalize(string texto)
         {
             return texto?
                 .Replace("\uFEFF", "") // remove BOM
+                .Replace(".", "")
+                .Replace("-", "")
+                .Replace("/", "")
                 .Trim()
                 .ToUpper() ?? "";
         }
