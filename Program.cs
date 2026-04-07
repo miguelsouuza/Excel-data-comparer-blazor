@@ -1,6 +1,8 @@
 using DataComparer.Components;
+using OfficeOpenXml;
 
 var builder = WebApplication.CreateBuilder(args);
+ExcelPackage.License.SetNonCommercialOrganization("BlazorApp");
 
 // Add services to the container.
 builder.Services.AddRazorComponents()

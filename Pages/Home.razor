@@ -10,28 +10,52 @@
 
     <div>
         <InputFile OnChange="UploadA" />
-        <p>Base A: @(baseA != null && baseA.Any() ? "Carregado ✅" : "Não carregado")</p>
+        <p>Base A: @(baseA.Any() ? "Carregado ✅" : "Não carregado")</p>
     </div>
 
     <div>
         <InputFile OnChange="UploadB" />
-        <p>Base B: @(baseB != null && baseB.Any() ? "Carregado ✅" : "Não carregado")</p>
+        <p>Base B: @(baseB.Any() ? "Carregado ✅" : "Não carregado")</p>
     </div>
 
 </div>
 
-<button @onclick="IrParaComparacao" class="mt-3 btn btn-success">
-    Comparar
-</button>
+<h4 class="mt-4">Selecionar Aba</h4>
 
-@if (baseA != null && baseA.Any() && baseB != null && baseB.Any())
+<div class="d-flex gap-4">
+
+    <div>
+        <label>Base A:</label>
+        <select value="@AbaSelecionadaA" @onchange="async (ChangeEventArgs e) => { AbaSelecionadaA = e.Value?.ToString(); await CarregarAbasSelecionadas(); }">
+            <option value="">Selecione</option>
+            @foreach (var aba in AbasA)
+            {
+                <option value="@aba">@aba</option>
+            }
+        </select>
+    </div>
+
+    <div>
+        <label>Base B:</label>
+        <!-- Recommended fix (Option B): remove the `@bind` and use explicit onchange handler -->
+        <select value="@AbaSelecionadaB" @onchange="OnAbaSelecionadaBChanged">
+            <option value="">Selecione</option>
+            @foreach (var aba in AbasB)
+            {
+                <option value="@aba">@aba</option>
+            }
+        </select>
+    </div>
+
+</div>
+
+@if (baseA.Any() && baseB.Any())
 {
     var colunasA = baseA.First().Campos.Keys.ToList();
     var colunasB = baseB.First().Campos.Keys.ToList();
 
     <div class="d-flex gap-4 mt-4">
 
-        <!-- 🔹 Seleção de ID A -->
         <div>
             <h4>ID Base A</h4>
             <select @bind="colunaA">
@@ -43,7 +67,6 @@
             </select>
         </div>
 
-        <!-- 🔹 Seleção de ID B -->
         <div>
             <h4>ID Base B</h4>
             <select @bind="colunaB">
@@ -57,12 +80,10 @@
 
     </div>
 
-    <!-- 🔥 AUTO MAP -->
     <button @onclick="AutoMapear" class="btn btn-primary mt-3">
         Auto Mapear 🤖
     </button>
 
-    <!-- 🔹 MAPEAMENTO -->
     <div class="mt-3">
         <h4>Mapeamento de Colunas</h4>
 
@@ -89,14 +110,18 @@
             </div>
         }
     </div>
+
+    <button @onclick="IrParaComparacao" class="mt-3 btn btn-success">
+        Comparar
+    </button>
 }
 
-@if (baseA != null && baseA.Any())
+@if (baseA.Any())
 {
     <TableComponent Base="baseA" Title="Preview Base A" />
 }
 
-@if (baseB != null && baseB.Any())
+@if (baseB.Any())
 {
     <TableComponent Base="baseB" Title="Preview Base B" />
 }
@@ -110,15 +135,23 @@
     private List<GenericRegistration> baseA = new();
     private List<GenericRegistration> baseB = new();
 
+    List<string> AbasA = new();
+    List<string> AbasB = new();
+
+    string AbaSelecionadaA;
+    string AbaSelecionadaB;
+
     // 🔹 Upload Base A
     private async Task UploadA(InputFileChangeEventArgs e)
     {
         var file = e.File;
 
-        using var stream = file.OpenReadStream(50 * 1024 * 1024);
+        _appState.StreamA = new MemoryStream();
+        await file.OpenReadStream(50 * 1024 * 1024).CopyToAsync(_appState.StreamA);
+        _appState.StreamA.Position = 0;
 
-        baseA = await _fileService.CarregarArquivoAsync(stream, file.Name);
-        _appState.BaseA = baseA;
+        AbasA = await _fileService.GetSheetNamesAsync(_appState.StreamA);
+        _appState.StreamA.Position = 0;
     }
 
     // 🔹 Upload Base B
@@ -126,9 +159,33 @@
     {
         var file = e.File;
 
-        using var stream = file.OpenReadStream(50 * 1024 * 1024);
+        _appState.StreamB = new MemoryStream();
+        await file.OpenReadStream(50 * 1024 * 1024).CopyToAsync(_appState.StreamB);
+        _appState.StreamB.Position = 0;
 
-        baseB = await _fileService.CarregarArquivoAsync(stream, file.Name);
+        AbasB = await _fileService.GetSheetNamesAsync(_appState.StreamB);
+        _appState.StreamB.Position = 0;
+    }
+
+    // 🔥 Carregar abas selecionadas
+    private async Task CarregarAbasSelecionadas()
+    {
+        if (string.IsNullOrEmpty(AbaSelecionadaA) || string.IsNullOrEmpty(AbaSelecionadaB))
+            return;
+
+        _appState.StreamA.Position = 0;
+        _appState.StreamB.Position = 0;
+
+        var registrosA = await _fileService.ReadExcelAsync(_appState.StreamA, AbaSelecionadaA);
+        _appState.StreamA.Position = 0;
+
+        var registrosB = await _fileService.ReadExcelAsync(_appState.StreamB, AbaSelecionadaB);
+        _appState.StreamB.Position = 0;
+
+        baseA = registrosA?.Select(d => new GenericRegistration { Campos = d }).ToList() ?? new List<GenericRegistration>();
+        baseB = registrosB?.Select(d => new GenericRegistration { Campos = d }).ToList() ?? new List<GenericRegistration>();
+
+        _appState.BaseA = baseA;
         _appState.BaseB = baseB;
     }
 
@@ -161,19 +218,34 @@
     // 🔹 Navegar para comparação
     private void IrParaComparacao()
     {
-        if (!_appState.BaseA.Any() || !_appState.BaseB.Any())
+        if (!baseA.Any() || !baseB.Any())
+        {
+            Console.WriteLine("Bases não carregadas");
             return;
+        }
 
         if (string.IsNullOrWhiteSpace(colunaA) || string.IsNullOrWhiteSpace(colunaB))
+        {
+            Console.WriteLine("Selecione as colunas de ID");
             return;
+        }
 
         if (!mapeamento.Any())
+        {
+            Console.WriteLine("Mapeamento não definido");
             return;
+        }
 
         _appState.ColunaA = colunaA;
         _appState.ColunaB = colunaB;
         _appState.Mapeamento = mapeamento;
 
         nav.NavigateTo("/compare");
+    }
+
+    private async Task OnAbaSelecionadaBChanged(ChangeEventArgs e)
+    {
+        AbaSelecionadaB = e?.Value?.ToString();
+        await CarregarAbasSelecionadas();
     }
 }

@@ -129,4 +129,58 @@ public class FileService : Helpers, IFileService
             _ => throw new Exception("Formato não suportado")
         };
     }
+
+    public async Task<List<string>> GetSheetNamesAsync(Stream fileStream)
+    {
+        var sheets = new List<string>();
+
+        using (var package = new ExcelPackage(fileStream))
+        {
+            foreach (var ws in package.Workbook.Worksheets)
+            {
+                sheets.Add(ws.Name);
+            }
+        }
+
+        return sheets;
+    }
+
+    public async Task<List<Dictionary<string, string>>> ReadExcelAsync(
+    Stream fileStream,
+    string sheetName)
+    {
+        var result = new List<Dictionary<string, string>>();
+
+        using (var package = new ExcelPackage(fileStream))
+        {
+            var worksheet = package.Workbook.Worksheets[sheetName];
+
+            if (worksheet == null)
+                throw new Exception($"A aba '{sheetName}' não foi encontrada.");
+
+            var colCount = worksheet.Dimension.Columns;
+            var rowCount = worksheet.Dimension.Rows;
+
+            var headers = new List<string>();
+
+            for (int col = 1; col <= colCount; col++)
+            {
+                headers.Add(worksheet.Cells[1, col].Text);
+            }
+
+            for (int row = 2; row <= rowCount; row++)
+            {
+                var dict = new Dictionary<string, string>();
+
+                for (int col = 1; col <= colCount; col++)
+                {
+                    dict[headers[col - 1]] = worksheet.Cells[row, col].Text;
+                }
+
+                result.Add(dict);
+            }
+        }
+
+        return result;
+    }
 }
