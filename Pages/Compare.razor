@@ -14,8 +14,8 @@ else
 {
     <p><b>Divergências:</b> @resultado.Diferencas?.Count</p>
     <p><b>Registros em ambas:</b> @resultado.EmAmbas</p>
-    <p><b>Apenas na A:</b> @resultado.ApenasA?.Count</p>
-    <p><b>Apenas na B:</b> @resultado.ApenasB?.Count</p>
+    <p><b>Apenas na @($"{_appState.NomeArquivoA}") :</b> @resultado.ApenasA?.Count</p>
+    <p><b>Apenas na @($"{_appState.NomeArquivoB}"):</b> @resultado.ApenasB?.Count</p>
 
     @if (resultado.Erros != null && resultado.Erros.Any())
     {

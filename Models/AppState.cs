@@ -9,4 +9,6 @@
     public Dictionary<string, string> Mapeamento { get; set; } = new Dictionary<string, string>();
     public MemoryStream StreamA { get; set; }
     public MemoryStream StreamB { get; set; }
+    public string NomeArquivoA { get; set; }
+    public string NomeArquivoB { get; set; }
 }

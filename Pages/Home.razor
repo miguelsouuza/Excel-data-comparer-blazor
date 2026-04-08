@@ -10,12 +10,20 @@
 
     <div>
         <InputFile OnChange="UploadA" />
-        <p>Base A: @(baseA.Any() ? "Carregado ✅" : "Não carregado")</p>
+        <p>
+            Base A:
+            @(_appState.NomeArquivoA ?? "Nenhum arquivo")
+            @(string.IsNullOrEmpty(AbaSelecionadaA) ? "" : $" - {AbaSelecionadaA}")
+        </p>
     </div>
 
     <div>
         <InputFile OnChange="UploadB" />
-        <p>Base B: @(baseB.Any() ? "Carregado ✅" : "Não carregado")</p>
+        <p>
+            Base B:
+            @(_appState.NomeArquivoB ?? "Nenhum arquivo")
+            @(string.IsNullOrEmpty(AbaSelecionadaB) ? "" : $" - {AbaSelecionadaB}")
+        </p>
     </div>
 
 </div>
@@ -118,12 +126,14 @@
 
 @if (baseA.Any())
 {
-    <TableComponent Base="baseA" Title="Preview Base A" />
+    <TableComponent Base="baseA"
+                    Title="@($"{_appState.NomeArquivoA} - {AbaSelecionadaA}")" />
 }
 
 @if (baseB.Any())
 {
-    <TableComponent Base="baseB" Title="Preview Base B" />
+    <TableComponent Base="baseB"
+                    Title="@($"{_appState.NomeArquivoB} - {AbaSelecionadaB}")" />
 }
 
 @code {
@@ -151,6 +161,7 @@
         _appState.StreamA.Position = 0;
 
         AbasA = await _fileService.GetSheetNamesAsync(_appState.StreamA);
+        _appState.NomeArquivoA = file.Name;
         _appState.StreamA.Position = 0;
     }
 
@@ -164,6 +175,7 @@
         _appState.StreamB.Position = 0;
 
         AbasB = await _fileService.GetSheetNamesAsync(_appState.StreamB);
+        _appState.NomeArquivoB = file.Name;
         _appState.StreamB.Position = 0;
     }
 
