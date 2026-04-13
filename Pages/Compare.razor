@@ -28,6 +28,33 @@ else
         </ul>
     }
 
+    @if (resultado.ApenasA != null && resultado.ApenasA.Any())
+    {
+        <h4>Apenas na @($"{_appState.NomeArquivoA}")</h4>
+        <ul>
+            @foreach (var erro in resultado.ApenasA)
+            {
+                <li>@erro</li>
+            }
+        </ul>
+    }
+    @if (resultado.ApenasB != null && resultado.ApenasB.Any())
+    {
+        <h4>Apenas na @($"{_appState.NomeArquivoB}")</h4>
+        <ul>
+            @foreach (var erro in resultado.ApenasB)
+            {
+                <li>@erro</li>
+            }
+        </ul>
+    }
+
+
+    else
+    {
+        <p>Nenhuma divergência encontrada</p>
+    }
+
     @if (resultado.Diferencas != null && resultado.Diferencas.Any())
     {
         <table border="1">
