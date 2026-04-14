@@ -1,263 +1,261 @@
 ﻿@page "/"
-@rendermode InteractiveServer
+@layout MainLayout
 
 @inject FileService _fileService
 @inject AppState _appState
 @inject NavigationManager nav
 @inject IAutoMappingService _autoMappingService
+@inject IHeaderCompareService _headerCompareService
 
-<div class="d-flex gap-4">
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
 
-    <div>
-        <InputFile OnChange="UploadA" />
-        <p>
-            Base A:
-            @(_appState.NomeArquivoA ?? "Nenhum arquivo")
-            @(string.IsNullOrEmpty(AbaSelecionadaA) ? "" : $" - {AbaSelecionadaA}")
-        </p>
-    </div>
+    <MudText Typo="Typo.h4" Class="mb-4">
+        Comparador de Dados 📊
+    </MudText>
 
-    <div>
-        <InputFile OnChange="UploadB" />
-        <p>
-            Base B:
-            @(_appState.NomeArquivoB ?? "Nenhum arquivo")
-            @(string.IsNullOrEmpty(AbaSelecionadaB) ? "" : $" - {AbaSelecionadaB}")
-        </p>
-    </div>
+    <!-- 🔹 Upload -->
+    <MudGrid>
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-4">
+                <MudText Typo="Typo.h6">Base A</MudText>
+                <InputFile OnChange="UploadA" />
+                <MudText Class="mt-2">@(_appState.NomeArquivoA ?? "Nenhum arquivo")</MudText>
+            </MudPaper>
+        </MudItem>
 
-</div>
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-4">
+                <MudText Typo="Typo.h6">Base B</MudText>
+                <InputFile OnChange="UploadB" />
+                <MudText Class="mt-2">@(_appState.NomeArquivoB ?? "Nenhum arquivo")</MudText>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
 
-<h4 class="mt-4">Selecionar Aba</h4>
+    @if (baseA.Any() && baseB.Any())
+    {
+        var colunasA = baseA.First().Campos.Keys.ToList();
+        var colunasB = baseB.First().Campos.Keys.ToList();
 
-<div class="d-flex gap-4">
-
-    <div>
-        <label>Base A:</label>
-        <select value="@AbaSelecionadaA" @onchange="async (ChangeEventArgs e) => { AbaSelecionadaA = e.Value?.ToString(); await CarregarAbasSelecionadas(); }">
-            <option value="">Selecione</option>
-            @foreach (var aba in AbasA)
-            {
-                <option value="@aba">@aba</option>
-            }
-        </select>
-    </div>
-
-    <div>
-        <label>Base B:</label>
-        <!-- Recommended fix (Option B): remove the `@bind` and use explicit onchange handler -->
-        <select value="@AbaSelecionadaB" @onchange="OnAbaSelecionadaBChanged">
-            <option value="">Selecione</option>
-            @foreach (var aba in AbasB)
-            {
-                <option value="@aba">@aba</option>
-            }
-        </select>
-    </div>
-
-</div>
-
-@if (baseA.Any() && baseB.Any())
-{
-    var colunasA = baseA.First().Campos.Keys.ToList();
-    var colunasB = baseB.First().Campos.Keys.ToList();
-
-    <div class="d-flex gap-4 mt-4">
-
-        <div>
-            <h4>ID Base A</h4>
-            <select @bind="colunaA">
-                <option value="">Selecione...</option>
-                @foreach (var col in colunasA)
-                {
-                    <option value="@col">@col</option>
-                }
-            </select>
-        </div>
-
-        <div>
-            <h4>ID Base B</h4>
-            <select @bind="colunaB">
-                <option value="">Selecione...</option>
-                @foreach (var col in colunasB)
-                {
-                    <option value="@col">@col</option>
-                }
-            </select>
-        </div>
-
-    </div>
-
-    <button @onclick="AutoMapear" class="btn btn-primary mt-3">
-        Auto Mapear 🤖
-    </button>
-
-    <div class="mt-3">
-        <h4>Mapeamento de Colunas</h4>
-
-        @foreach (var colA in colunasA)
-        {
-            <div class="d-flex gap-2 mb-1 align-items-center">
-
-                <span style="width:200px">@colA</span>
-
-                <select @onchange="(e) => Mapear(colA, e.Value?.ToString())">
-
-                    <option value="">Selecione</option>
-
-                    @foreach (var colB in colunasB)
+        <!-- 🔹 Seleção ID -->
+        <MudGrid Class="mt-4">
+            <MudItem xs="6">
+                <MudSelect T="string" Label="ID Base A" @bind-Value="colunaA">
+                    @foreach (var col in colunasA)
                     {
-                        <option value="@colB"
-                                selected="@(mapeamento.ContainsKey(colA) && mapeamento[colA] == colB)">
-                            @colB
-                        </option>
+                        <MudSelectItem Value="@col">@col</MudSelectItem>
                     }
+                </MudSelect>
+            </MudItem>
 
-                </select>
+            <MudItem xs="6">
+                <MudSelect T="string" Label="ID Base B" @bind-Value="colunaB">
+                    @foreach (var col in colunasB)
+                    {
+                        <MudSelectItem Value="@col">@col</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+        </MudGrid>
 
-            </div>
+        <!-- 🔹 Ações -->
+        <MudStack Row="true" Spacing="2" Class="mt-4">
+
+            <MudButton Variant="Variant.Filled" Color="Color.Warning" OnClick="CompararHeaders">
+                Comparar Headers 📊
+            </MudButton>
+
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AutoMapear">
+                Auto Mapear 🤖
+            </MudButton>
+
+            <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="IrParaComparacao">
+                Comparar
+            </MudButton>
+
+        </MudStack>
+
+        <!-- 🔹 Resultado Header -->
+        @if (headerResult != null)
+        {
+            <MudPaper Class="pa-4 mt-4">
+                <MudText Typo="Typo.h6">Resultado dos Headers</MudText>
+
+                <MudGrid>
+
+                    <MudItem xs="4">
+                        <MudText Color="Color.Success">Em comum</MudText>
+                        @foreach (var item in headerResult.EmComum)
+                        {
+                            <MudChip T="string" Color="Color.Success" Class="ma-1">@item</MudChip>
+                        }
+                    </MudItem>
+
+                    <MudItem xs="4">
+                        <MudText Color="Color.Warning">Apenas A</MudText>
+                        @foreach (var item in headerResult.ApenasA)
+                        {
+                            <MudChip T="string" Color="Color.Warning" Class="ma-1">@item</MudChip>
+                        }
+                    </MudItem>
+
+                    <MudItem xs="4">
+                        <MudText Color="Color.Error">Apenas B</MudText>
+                        @foreach (var item in headerResult.ApenasB)
+                        {
+                            <MudChip T="string" Color="Color.Error" Class="ma-1">@item</MudChip>
+                        }
+                    </MudItem>
+
+                </MudGrid>
+            </MudPaper>
         }
-    </div>
 
-    <button @onclick="IrParaComparacao" class="mt-3 btn btn-success">
-        Comparar
-    </button>
-}
+        <!-- 🔹 Mapeamento -->
+        <MudPaper Class="pa-4 mt-4">
+            <MudText Typo="Typo.h6">Mapeamento de Colunas</MudText>
 
-@if (baseA.Any())
-{
-    <TableComponent Base="baseA"
-                    Title="@($"{_appState.NomeArquivoA} - {AbaSelecionadaA}")" />
-}
+            @foreach (var colA in colunasA)
+            {
+                <MudGrid Class="mb-2">
 
-@if (baseB.Any())
-{
-    <TableComponent Base="baseB"
-                    Title="@($"{_appState.NomeArquivoB} - {AbaSelecionadaB}")" />
-}
+                    <MudItem xs="5">
+                        <MudText>@colA</MudText>
+                    </MudItem>
+
+                    <MudItem xs="7">
+                        <MudSelect T="string"
+                                   @bind-Value="mapeamentoUI[colA]">
+
+                            <MudSelectItem T="string" >Selecione</MudSelectItem>
+
+                            @foreach (var colB in GetColunasDisponiveis(colA))
+                            {
+                                <MudSelectItem Value="@colB">@colB</MudSelectItem>
+                            }
+
+                        </MudSelect>
+                    </MudItem>
+
+                </MudGrid>
+            }
+        </MudPaper>
+    }
+
+</MudContainer>
 
 @code {
-    private string colunaA = string.Empty;
-    private string colunaB = string.Empty;
+    private string colunaA = "";
+    private string colunaB = "";
 
     private Dictionary<string, string> mapeamento = new();
+    private Dictionary<string, string> mapeamentoUI = new();
+
+    private HeaderCompareResult? headerResult;
 
     private List<GenericRegistration> baseA = new();
     private List<GenericRegistration> baseB = new();
 
-    List<string> AbasA = new();
-    List<string> AbasB = new();
-
-    string AbaSelecionadaA;
-    string AbaSelecionadaB;
-
-    // 🔹 Upload Base A
+    // 🔹 Upload
     private async Task UploadA(InputFileChangeEventArgs e)
     {
         var file = e.File;
 
-        _appState.StreamA = new MemoryStream();
-        await file.OpenReadStream(50 * 1024 * 1024).CopyToAsync(_appState.StreamA);
-        _appState.StreamA.Position = 0;
+        using var stream = file.OpenReadStream(50 * 1024 * 1024);
+        baseA = await _fileService.CarregarArquivoAsync(stream, file.Name);
 
-        AbasA = await _fileService.GetSheetNamesAsync(_appState.StreamA);
-        _appState.NomeArquivoA = file.Name;
-        _appState.StreamA.Position = 0;
+        _appState.BaseA = baseA;
+
+        InicializarMapeamento();
     }
 
-    // 🔹 Upload Base B
     private async Task UploadB(InputFileChangeEventArgs e)
     {
         var file = e.File;
 
-        _appState.StreamB = new MemoryStream();
-        await file.OpenReadStream(50 * 1024 * 1024).CopyToAsync(_appState.StreamB);
-        _appState.StreamB.Position = 0;
+        using var stream = file.OpenReadStream(50 * 1024 * 1024);
+        baseB = await _fileService.CarregarArquivoAsync(stream, file.Name);
 
-        AbasB = await _fileService.GetSheetNamesAsync(_appState.StreamB);
-        _appState.NomeArquivoB = file.Name;
-        _appState.StreamB.Position = 0;
-    }
-
-    // 🔥 Carregar abas selecionadas
-    private async Task CarregarAbasSelecionadas()
-    {
-        if (string.IsNullOrEmpty(AbaSelecionadaA) || string.IsNullOrEmpty(AbaSelecionadaB))
-            return;
-
-        _appState.StreamA.Position = 0;
-        _appState.StreamB.Position = 0;
-
-        var registrosA = await _fileService.ReadExcelAsync(_appState.StreamA, AbaSelecionadaA);
-        _appState.StreamA.Position = 0;
-
-        var registrosB = await _fileService.ReadExcelAsync(_appState.StreamB, AbaSelecionadaB);
-        _appState.StreamB.Position = 0;
-
-        baseA = registrosA?.Select(d => new GenericRegistration { Campos = d }).ToList() ?? new List<GenericRegistration>();
-        baseB = registrosB?.Select(d => new GenericRegistration { Campos = d }).ToList() ?? new List<GenericRegistration>();
-
-        _appState.BaseA = baseA;
         _appState.BaseB = baseB;
     }
 
-    // 🔥 AUTO MAP
-    private void AutoMapear()
+    // 🔥 Inicialização correta
+    private void InicializarMapeamento()
     {
-        if (!baseA.Any() || !baseB.Any())
+        if (!baseA.Any())
             return;
 
+        var colunas = baseA.First().Campos.Keys;
+
+        mapeamento = colunas.ToDictionary(k => k, v => "");
+        mapeamentoUI = colunas.ToDictionary(k => k, v => "");
+    }
+
+    // 🔥 AutoMap CORRIGIDO
+    private void AutoMapear()
+    {
+        var auto = _autoMappingService.GerarMapeamento(
+            baseA.First().Campos.Keys.ToList(),
+            baseB.First().Campos.Keys.ToList()
+        );
+
+        foreach (var col in baseA.First().Campos.Keys)
+        {
+            if (!mapeamento.ContainsKey(col))
+                mapeamento[col] = "";
+
+            if (!mapeamentoUI.ContainsKey(col))
+                mapeamentoUI[col] = "";
+        }
+
+        foreach (var item in auto)
+        {
+            mapeamento[item.Key] = item.Value;
+            mapeamentoUI[item.Key] = item.Value; // 🔥 sincroniza UI
+        }
+    }
+
+    private void CompararHeaders()
+    {
         var colunasA = baseA.First().Campos.Keys.ToList();
         var colunasB = baseB.First().Campos.Keys.ToList();
 
-        mapeamento = _autoMappingService.GerarMapeamento(colunasA, colunasB);
+        headerResult = _headerCompareService.Comparar(colunasA, colunasB);
     }
 
-    // 🔹 Mapeamento manual
-    private void Mapear(string colunaA, string? colunaB)
+    // 🔥 FILTRO FINAL CORRIGIDO
+    private List<string> GetColunasDisponiveis(string colunaAtual)
     {
-        if (string.IsNullOrWhiteSpace(colunaB))
-        {
-            if (mapeamento.ContainsKey(colunaA))
-                mapeamento.Remove(colunaA);
+        var todas = baseB.First().Campos.Keys.ToList();
 
-            return;
-        }
+        var usadas = mapeamento
+            .Where(x => x.Key != colunaAtual)
+            .Select(x => x.Value)
+            .Where(v => !string.IsNullOrWhiteSpace(v)) // 🔥 ESSENCIAL
+            .ToHashSet();
 
-        mapeamento[colunaA] = colunaB;
+        return todas
+            .Where(col =>
+                !usadas.Contains(col) ||
+                (mapeamento[colunaAtual] == col))
+            .ToList();
     }
 
-    // 🔹 Navegar para comparação
     private void IrParaComparacao()
     {
         if (!baseA.Any() || !baseB.Any())
-        {
-            Console.WriteLine("Bases não carregadas");
             return;
-        }
 
         if (string.IsNullOrWhiteSpace(colunaA) || string.IsNullOrWhiteSpace(colunaB))
-        {
-            Console.WriteLine("Selecione as colunas de ID");
             return;
-        }
 
         if (!mapeamento.Any())
-        {
-            Console.WriteLine("Mapeamento não definido");
             return;
-        }
 
         _appState.ColunaA = colunaA;
         _appState.ColunaB = colunaB;
         _appState.Mapeamento = mapeamento;
 
         nav.NavigateTo("/compare");
-    }
-
-    private async Task OnAbaSelecionadaBChanged(ChangeEventArgs e)
-    {
-        AbaSelecionadaB = e?.Value?.ToString();
-        await CarregarAbasSelecionadas();
     }
 }

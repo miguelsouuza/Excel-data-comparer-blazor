@@ -1,0 +1,38 @@
+﻿@if (Difference != null && Difference.Any())
+{
+    <h4>@Title</h4>
+
+    <table border="1">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Campo</th>
+                <th>Valor A</th>
+                <th>Valor B</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var d in Difference)
+            {
+                <tr>
+                    <td>@d.Id</td>
+                    <td>@d.Campo</td>
+                    <td>@d.ValorA</td>
+                    <td>@d.ValorB</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <p>Sem diferenças encontradas.</p>
+}
+
+@code {
+    [Parameter]
+    public List<Difference> Difference { get; set; } = new();
+
+    [Parameter]
+    public string Title { get; set; } = "Diferenças";
+}

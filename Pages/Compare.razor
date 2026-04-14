@@ -56,28 +56,8 @@ else
     }
 
     @if (resultado.Diferencas != null && resultado.Diferencas.Any())
-    {
-        <table border="1">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Campo</th>
-                    <th>Valor A</th>
-                    <th>Valor B</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var d in resultado.Diferencas)
-                {
-                    <tr>
-                        <td>@d.Id</td>
-                        <td>@d.Campo</td>
-                        <td>@d.ValorA</td>
-                        <td>@d.ValorB</td>
-                    </tr>
-                }
-            </tbody>
-        </table>
+    {        
+       <TableDifference Difference="resultado.Diferencas" Title="Divergências encontradas" />
     }
     else
     {

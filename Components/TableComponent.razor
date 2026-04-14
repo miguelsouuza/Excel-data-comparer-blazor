@@ -1,27 +1,26 @@
-﻿<h4>@Title</h4>
+﻿<MudPaper Class="pa-3 mt-3">
 
-<table>
-    <thead>
-        <tr>
+    <MudText Typo="Typo.h6">@Title</MudText>
+
+    <MudTable Items="Base.Take(5)" Dense="true" Hover="true" Bordered="true">
+
+        <HeaderContent>
             @foreach (var col in Base.First().Campos.Keys)
             {
-                <th>@col</th>
+                <MudTh>@col</MudTh>
             }
-        </tr>
-    </thead>
+        </HeaderContent>
 
-    <tbody>
-        @foreach (var row in Base.Take(5))
-        {
-            <tr>
-                @foreach (var col in row.Campos.Values)
-                {
-                    <td>@col</td>
-                }
-            </tr>
-        }
-    </tbody>
-</table>
+        <RowTemplate>
+            @foreach (var col in context.Campos.Keys)
+            {
+                <MudTd Class="@(col == "NOME" ? "fw-bold" : "")">@context.Campos[col]</MudTd>
+            }
+        </RowTemplate>
+
+    </MudTable>
+
+</MudPaper>
 
 @code {
     [Parameter]

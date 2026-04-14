@@ -1,7 +1,11 @@
 html, body {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
-
+td {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
 a, .btn-link {
     color: #006bb7;
 }
