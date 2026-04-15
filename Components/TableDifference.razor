@@ -1,33 +1,64 @@
-﻿@if (Difference != null && Difference.Any())
-{
-    <h4>@Title</h4>
+﻿<MudPaper Class="pa-4 mt-4">
 
-    <table border="1">
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Campo</th>
-                <th>Valor A</th>
-                <th>Valor B</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var d in Difference)
-            {
-                <tr>
-                    <td>@d.Id</td>
-                    <td>@d.Campo</td>
-                    <td>@d.ValorA</td>
-                    <td>@d.ValorB</td>
-                </tr>
-            }
-        </tbody>
-    </table>
-}
-else
-{
-    <p>Sem diferenças encontradas.</p>
-}
+    <MudText Typo="Typo.h6" Class="mb-3">
+        @Title
+    </MudText>
+
+    @if (Difference == null || !Difference.Any())
+    {
+        <MudAlert Severity="Severity.Success">
+            Sem diferenças encontradas 🎉
+        </MudAlert>
+    }
+    else
+    {
+        <MudTable Items="Difference"
+                  Dense="true"
+                  Hover="true"
+                  Bordered="true"
+                  Striped="true">
+
+            <!-- HEADER -->
+            <HeaderContent>
+                <MudTh>ID</MudTh>
+                <MudTh>Campo</MudTh>
+                <MudTh>Valor A</MudTh>
+                <MudTh>Valor B</MudTh>
+            </HeaderContent>
+
+            <!-- LINHAS -->
+            <RowTemplate>
+                <MudTd DataLabel="ID">@context.Id</MudTd>
+
+                <MudTd DataLabel="Campo">
+                    <MudChip T="string" Color="Color.Primary" Variant="Variant.Outlined">
+                        @context.Campo
+                    </MudChip>
+                </MudTd>
+
+                <!-- 🔴 Valor A -->
+                <MudTd DataLabel="Valor A">
+                    <MudTooltip Text="@context.ValorA">
+                        <span class="text-truncate">
+                            @context.ValorA
+                        </span>
+                    </MudTooltip>
+                </MudTd>
+
+                <!-- 🔴 Valor B -->
+                <MudTd DataLabel="Valor B">
+                    <MudTooltip Text="@context.ValorB">
+                        <span class="text-truncate text-danger fw-bold">
+                            @context.ValorB
+                        </span>
+                    </MudTooltip>
+                </MudTd>
+            </RowTemplate>
+
+        </MudTable>
+    }
+
+</MudPaper>
 
 @code {
     [Parameter]

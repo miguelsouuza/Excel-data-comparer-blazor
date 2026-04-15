@@ -3,7 +3,6 @@ using OfficeOpenXml;
 
 public class FileService : Helpers, IFileService
 {
-    // 🔥 Mapeamento de colunas (PADRÃO)
     private string MapearColuna(string coluna)
     {
         coluna = coluna.ToUpper().Trim();
@@ -24,7 +23,76 @@ public class FileService : Helpers, IFileService
         };
     }
 
-    private async Task<List<GenericRegistration>> CarregarTxt(Stream stream)
+    // 🔥 LISTAR ABAS
+    public List<string> ObterAbas(Stream stream)
+    {
+        stream.Position = 0;
+
+        using var package = new ExcelPackage(stream);
+
+        return package.Workbook.Worksheets
+            .Select(ws => ws.Name)
+            .ToList();
+    }
+
+    // 🔥 LER ABA (VERSÃO CORRETA)
+    public async Task<List<Dictionary<string, string>>> CarregarExcelPorAba(
+        Stream stream,
+        string nomeAba)
+    {
+        stream.Position = 0;
+
+        using var package = new ExcelPackage(stream);
+        var ws = package.Workbook.Worksheets[nomeAba];
+
+        if (ws?.Dimension == null)
+            return new List<Dictionary<string, string>>();
+
+        int colunas = ws.Dimension.Columns;
+        int linhas = ws.Dimension.Rows;
+
+        var headers = new List<string>();
+
+        // 🔥 HEADERS NORMALIZADOS
+        for (int col = 1; col <= colunas; col++)
+        {
+            var original = ws.Cells[1, col].Text;
+            var normalizado = Normalize(original);
+            var final = MapearColuna(normalizado);
+
+            headers.Add(final);
+        }
+
+        var lista = new List<Dictionary<string, string>>();
+
+        // 🔹 LINHAS
+        for (int lin = 2; lin <= linhas; lin++)
+        {
+            var dict = new Dictionary<string, string>();
+
+            bool linhaVazia = true;
+
+            for (int col = 1; col <= colunas; col++)
+            {
+                var valor = ws.Cells[lin, col].Text?.Trim() ?? "";
+
+                if (!string.IsNullOrWhiteSpace(valor))
+                    linhaVazia = false;
+
+                dict[headers[col - 1]] = valor;
+            }
+
+            if (linhaVazia)
+                continue;
+
+            lista.Add(dict);
+        }
+
+        return lista;
+    }
+
+    // 🔥 TXT/CSV
+    public async Task<List<GenericRegistration>> CarregarTxt(Stream stream)
     {
         var lista = new List<GenericRegistration>();
 
@@ -37,7 +105,8 @@ public class FileService : Helpers, IFileService
             linhas.Add(linha);
         }
 
-        if (linhas.Count == 0) return lista;
+        if (!linhas.Any())
+            return lista;
 
         var separador = DetectSeparator(linhas[0]);
 
@@ -60,9 +129,7 @@ public class FileService : Helpers, IFileService
 
             for (int i = 0; i < headers.Length; i++)
             {
-                var valor = valores[i]?.Trim() ?? "";
-
-                registro.Campos[headers[i]] = valor;
+                registro.Campos[headers[i]] = valores[i]?.Trim() ?? "";
             }
 
             lista.Add(registro);
@@ -71,116 +138,20 @@ public class FileService : Helpers, IFileService
         return lista;
     }
 
-    private async Task<List<GenericRegistration>> CarregarExcel(Stream stream)
-    {
-        var lista = new List<GenericRegistration>();
-
-        using var memoryStream = new MemoryStream();
-        await stream.CopyToAsync(memoryStream);
-        memoryStream.Position = 0;
-
-        ExcelPackage.License.SetNonCommercialOrganization("BlazorApp");
-
-        using var package = new ExcelPackage(memoryStream);
-        var ws = package.Workbook.Worksheets.FirstOrDefault();
-
-        if (ws?.Dimension == null)
-            return lista;
-
-        int colunas = ws.Dimension.Columns;
-        int linhas = ws.Dimension.Rows;
-
-        var headers = new List<string>();
-
-        for (int col = 1; col <= colunas; col++)
-        {
-            var headerOriginal = ws.Cells[1, col].Text;
-            var headerNormalizado = MapearColuna(Normalize(headerOriginal));
-
-            headers.Add(headerNormalizado);
-        }
-
-        for (int lin = 2; lin <= linhas; lin++)
-        {
-            var registro = new GenericRegistration();
-
-            for (int col = 1; col <= colunas; col++)
-            {
-                var nomeColuna = headers[col - 1];
-                var valor = ws.Cells[lin, col].Text?.Trim() ?? "";
-
-                registro.Campos[nomeColuna] = valor;
-            }
-
-            lista.Add(registro);
-        }
-
-        return lista;
-    }
-
+    // 🔥 MÉTODO PRINCIPAL
     public async Task<List<GenericRegistration>> CarregarArquivoAsync(Stream stream, string fileName)
     {
         var ext = Path.GetExtension(fileName).ToLower();
 
         return ext switch
         {
-            ".xlsx" => await CarregarExcel(stream),
+            ".xlsx" => (await CarregarExcelPorAba(stream, ObterAbas(stream).First()))
+                .Select(d => new GenericRegistration { Campos = d })
+                .ToList(),
+
             ".csv" or ".txt" => await CarregarTxt(stream),
+
             _ => throw new Exception("Formato não suportado")
         };
-    }
-
-    public async Task<List<string>> GetSheetNamesAsync(Stream fileStream)
-    {
-        var sheets = new List<string>();
-
-        using (var package = new ExcelPackage(fileStream))
-        {
-            foreach (var ws in package.Workbook.Worksheets)
-            {
-                sheets.Add(ws.Name);
-            }
-        }
-
-        return sheets;
-    }
-
-    public async Task<List<Dictionary<string, string>>> ReadExcelAsync(
-    Stream fileStream,
-    string sheetName)
-    {
-        var result = new List<Dictionary<string, string>>();
-
-        using (var package = new ExcelPackage(fileStream))
-        {
-            var worksheet = package.Workbook.Worksheets[sheetName];
-
-            if (worksheet == null)
-                throw new Exception($"A aba '{sheetName}' não foi encontrada.");
-
-            var colCount = worksheet.Dimension.Columns;
-            var rowCount = worksheet.Dimension.Rows;
-
-            var headers = new List<string>();
-
-            for (int col = 1; col <= colCount; col++)
-            {
-                headers.Add(worksheet.Cells[1, col].Text);
-            }
-
-            for (int row = 2; row <= rowCount; row++)
-            {
-                var dict = new Dictionary<string, string>();
-
-                for (int col = 1; col <= colCount; col++)
-                {
-                    dict[headers[col - 1]] = worksheet.Cells[row, col].Text;
-                }
-
-                result.Add(dict);
-            }
-        }
-
-        return result;
     }
 }

@@ -1,69 +1,145 @@
-﻿@inject ICompareService _compareService
-@inject AppState _appState
+﻿@page "/compare"
 @rendermode InteractiveServer
 
-@page "/compare"
+@inject ICompareService _compareService
+@inject AppState _appState
 
-<h3>Resultado da Comparação</h3>
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
 
-@if (resultado == null)
-{
-    <p>Carregando...</p>
-}
-else
-{
-    <p><b>Divergências:</b> @resultado.Diferencas?.Count</p>
-    <p><b>Registros em ambas:</b> @resultado.EmAmbas</p>
-    <p><b>Apenas na @($"{_appState.NomeArquivoA}") :</b> @resultado.ApenasA?.Count</p>
-    <p><b>Apenas na @($"{_appState.NomeArquivoB}"):</b> @resultado.ApenasB?.Count</p>
+    <MudText Typo="Typo.h4" Class="mb-4">
+        Resultado da Comparação 📊
+    </MudText>
 
-    @if (resultado.Erros != null && resultado.Erros.Any())
+    @if (resultado == null)
     {
-        <h4>Erros</h4>
-        <ul>
-            @foreach (var erro in resultado.Erros)
-            {
-                <li>@erro</li>
-            }
-        </ul>
-    }
-
-    @if (resultado.ApenasA != null && resultado.ApenasA.Any())
-    {
-        <h4>Apenas na @($"{_appState.NomeArquivoA}")</h4>
-        <ul>
-            @foreach (var erro in resultado.ApenasA)
-            {
-                <li>@erro</li>
-            }
-        </ul>
-    }
-    @if (resultado.ApenasB != null && resultado.ApenasB.Any())
-    {
-        <h4>Apenas na @($"{_appState.NomeArquivoB}")</h4>
-        <ul>
-            @foreach (var erro in resultado.ApenasB)
-            {
-                <li>@erro</li>
-            }
-        </ul>
-    }
-
-
-    else
-    {
-        <p>Nenhuma divergência encontrada</p>
-    }
-
-    @if (resultado.Diferencas != null && resultado.Diferencas.Any())
-    {        
-       <TableDifference Difference="resultado.Diferencas" Title="Divergências encontradas" />
+        <MudProgressCircular Indeterminate="true" />
     }
     else
     {
-        <p>Nenhuma divergência encontrada</p>
+        <!-- 🔥 CARDS RESUMO -->
+        <MudGrid>
+
+            <MudItem xs="12" md="3">
+                <MudPaper Class="pa-3">
+                    <MudText Typo="Typo.subtitle2">Divergências</MudText>
+                    <MudText Typo="Typo.h5" Color="Color.Error">
+                        @resultado.Diferencas?.Count
+                    </MudText>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" md="3">
+                <MudPaper Class="pa-3">
+                    <MudText Typo="Typo.subtitle2">Em ambas</MudText>
+                    <MudText Typo="Typo.h5" Color="Color.Success">
+                        @resultado.EmAmbas
+                    </MudText>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" md="3">
+                <MudPaper Class="pa-3">
+                    <MudText Typo="Typo.subtitle2">
+                        Apenas @_appState.NomeArquivoA
+                    </MudText>
+                    <MudText Typo="Typo.h5" Color="Color.Warning">
+                        @resultado.ApenasA?.Count
+                    </MudText>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" md="3">
+                <MudPaper Class="pa-3">
+                    <MudText Typo="Typo.subtitle2">
+                        Apenas @_appState.NomeArquivoB
+                    </MudText>
+                    <MudText Typo="Typo.h5" Color="Color.Warning">
+                        @resultado.ApenasB?.Count
+                    </MudText>
+                </MudPaper>
+            </MudItem>
+
+        </MudGrid>
+
+        <!-- 🔴 ERROS -->
+        @if (resultado.Erros?.Any() == true)
+        {
+            <MudAlert Severity="Severity.Error" Class="mt-4">
+                <MudText Typo="Typo.subtitle1">Erros encontrados</MudText>
+
+                <ul>
+                    @foreach (var erro in resultado.Erros)
+                    {
+                        <li>@erro</li>
+                    }
+                </ul>
+            </MudAlert>
+        }
+
+        <!-- 🟡 APENAS A / B -->
+        <MudGrid Class="mt-4">
+
+            @if (resultado.ApenasA?.Any() == true)
+            {
+                <MudItem xs="12" md="6">
+                    <MudPaper Class="pa-3">
+                        <MudText Typo="Typo.h6" Color="Color.Warning">
+                            Apenas em @_appState.NomeArquivoA
+                        </MudText>
+
+                        @foreach (var item in resultado.ApenasA.Take(20))
+                        {
+                            <MudChip T="string" Color="Color.Warning" Class="ma-1">
+                                @item
+                            </MudChip>
+                        }
+                    </MudPaper>
+                </MudItem>
+            }
+
+            @if (resultado.ApenasB?.Any() == true)
+            {
+                <MudItem xs="12" md="6">
+                    <MudPaper Class="pa-3">
+                        <MudText Typo="Typo.h6" Color="Color.Warning">
+                            Apenas em @_appState.NomeArquivoB
+                        </MudText>
+
+                        @foreach (var item in resultado.ApenasB.Take(20))
+                        {
+                            <MudChip T="string" Color="Color.Warning" Class="ma-1">
+                                @item
+                            </MudChip>
+                        }
+                    </MudPaper>
+                </MudItem>
+            }
+
+        </MudGrid>
+
+        <!-- 🔥 TABELA DIFERENÇAS -->
+        @if (resultado.Diferencas?.Any() == true)
+        {
+            <MudPaper Class="pa-4 mt-4">
+
+                <MudText Typo="Typo.h6" Class="mb-2">
+                    Divergências encontradas
+                </MudText>
+
+                <TableDifference Difference="resultado.Diferencas"
+                                 Title="Diferenças" />
+
+            </MudPaper>
+        }
+        else
+        {
+            <MudAlert Severity="Severity.Success" Class="mt-4">
+                Nenhuma divergência encontrada 🎉
+            </MudAlert>
+        }
     }
-}
+
+</MudContainer>
 
 @code {
     private CompareResult resultado;

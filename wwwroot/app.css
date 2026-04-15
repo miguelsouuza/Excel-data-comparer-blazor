@@ -1,6 +1,22 @@
 html, body {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
+
+.text-truncate {
+    max-width: 200px;
+    display: inline-block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.text-danger {
+    color: #dc2626;
+}
+
+.fw-bold {
+    font-weight: bold;
+}
 td {
     max-width: 200px;
     overflow: hidden;
