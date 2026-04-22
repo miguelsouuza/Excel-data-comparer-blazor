@@ -1,0 +1,80 @@
+@using System.Linq
+@using Microsoft.AspNetCore.Components
+@inject IAutoMappingService _autoMappingService
+
+<div>
+    <MudButton Color="Color.Secondary" OnClick="ExecuteAlign" Disabled="isProcessing">
+        @if (isProcessing)
+        {
+            <MudProgressCircular Size="Size.Medium" Indeterminate="true" Class="me-2" />
+            <span>Processando...</span>
+        }
+        else
+        {
+            <span>Alinhar</span>
+        }
+    </MudButton>
+</div>
+
+@code {
+    [Parameter]
+    public List<GenericRegistration> BaseA { get; set; } = new();
+
+    [Parameter]
+    public List<GenericRegistration> BaseB { get; set; } = new();
+
+    [Parameter]
+    public EventCallback<AlignmentResult> OnCompleted { get; set; }
+
+    private bool isProcessing = false;
+
+    private async Task ExecuteAlign()
+    {
+        if (isProcessing) return;
+        isProcessing = true;
+
+        try
+        {
+            var result = _autoMappingService.AlinharBaseB(BaseA, BaseB);
+
+            var headersA = BaseA?.FirstOrDefault()?.Campos.Keys.ToList() ?? new List<string>();
+            var headersB = BaseB?.FirstOrDefault()?.Campos.Keys.ToList() ?? new List<string>();
+
+            var ar = new AlignmentResult
+            {
+                Alinhada = result.Alinhada,
+                Mapeamento = result.Mapeamento,
+                HeadersA = headersA,
+                HeadersB = headersB
+            };
+
+            var mappedValues = result.Mapeamento.Values.Where(v => !string.IsNullOrWhiteSpace(v)).ToList();
+
+            ar.Renomeadas = result.Mapeamento
+                .Where(kv => !string.IsNullOrWhiteSpace(kv.Value) && !string.Equals(kv.Key, kv.Value, System.StringComparison.OrdinalIgnoreCase))
+                .Select(kv => (kv.Key, kv.Value)).ToList();
+
+            ar.Mantidas = result.Mapeamento
+                .Where(kv => !string.IsNullOrWhiteSpace(kv.Value) && string.Equals(kv.Key, kv.Value, System.StringComparison.OrdinalIgnoreCase))
+                .Select(kv => kv.Key).ToList();
+
+            ar.Removidas = headersB
+                .Where(h => !mappedValues.Any(v => string.Equals(v, h, System.StringComparison.OrdinalIgnoreCase))
+                            && !headersA.Any(a => string.Equals(a, h, System.StringComparison.OrdinalIgnoreCase)))
+                .ToList();
+
+            // incluir lista de colunas que foram adicionadas/implantadas na Base B
+            ar.Incluidas = headersA
+                .Where(h => !headersB.Any(b => string.Equals(b, h, System.StringComparison.OrdinalIgnoreCase)))
+                .Select(h => (ColunaA: h, FonteB: result.Mapeamento.TryGetValue(h, out var src) ? src : ""))
+                .ToList();
+
+            if (OnCompleted.HasDelegate)
+                await OnCompleted.InvokeAsync(ar);
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+}

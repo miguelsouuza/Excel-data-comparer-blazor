@@ -88,11 +88,20 @@
                 Auto Mapear 🤖
             </MudButton>
 
+            <AlignAction BaseA="baseA" BaseB="baseB" OnCompleted="HandleAligned" />
+
             <MudButton Color="Color.Success" OnClick="IrParaComparacao">
                 Comparar
             </MudButton>
 
         </MudStack>
+
+        @if (alignmentResult != null)
+        {
+            <MudPaper Class="pa-4 mt-4">
+                <AlignPreview Result="alignmentResult" OnConfirmed="HandleConfirmed" OnClose="HandleClosePreview" />
+            </MudPaper>
+        }
 
         <!-- 🔹 Resultado Headers -->
         @if (headerResult != null)
@@ -181,6 +190,8 @@
 
     private List<GenericRegistration> baseA = new();
     private List<GenericRegistration> baseB = new();
+    private AlignmentResult? alignmentResult;
+    private string? originalNomeArquivoB;
 
     // 🔹 Upload
     private async Task UploadA(InputFileChangeEventArgs e)
@@ -191,8 +202,31 @@
 
         streamA = memory;
 
+        // salvar stream original no AppState para permitir mapear nomes de abas
+        try
+        {
+            memory.Position = 0;
+            _appState.StreamA = new System.IO.MemoryStream();
+            await memory.CopyToAsync(_appState.StreamA);
+            _appState.StreamA.Position = 0;
+            streamA.Position = 0;
+        }
+        catch
+        {
+            // ignore
+        }
+
         abasA = _fileService.ObterAbas(memory);
         abaSelecionadaA = abasA.FirstOrDefault() ?? "";
+        // salvar nome original do arquivo enviado (IBrowserFile.Name)
+        try
+        {
+            _appState.NomeArquivoA = System.IO.Path.GetFileName(e.File.Name);
+        }
+        catch
+        {
+            // ignore
+        }
     }
 
     private async Task UploadB(InputFileChangeEventArgs e)
@@ -203,8 +237,65 @@
 
         streamB = memory;
 
+        // salvar stream original no AppState para permitir export multi-aba
+        try
+        {
+            // clonar/guardar o MemoryStream no AppState
+            memory.Position = 0;
+            _appState.StreamB = new System.IO.MemoryStream();
+            await memory.CopyToAsync(_appState.StreamB);
+            _appState.StreamB.Position = 0;
+            // também manter a referência local
+            streamB.Position = 0;
+        }
+        catch
+        {
+            // ignore
+        }
+
         abasB = _fileService.ObterAbas(memory);
         abaSelecionadaB = abasB.FirstOrDefault() ?? "";
+        // salvar nome original do arquivo enviado (IBrowserFile.Name)
+        try
+        {
+            originalNomeArquivoB = System.IO.Path.GetFileName(e.File.Name);
+            _appState.NomeArquivoB = originalNomeArquivoB;
+        }
+        catch
+        {
+            // ignore
+        }
+        // Ao selecionar um novo arquivo B, queremos recarregar a página mantendo a Base A no AppState.
+        // Se já existe BaseA carregada localmente, garante que está salva no AppState antes do refresh.
+        try
+        {
+            // garante BaseA está preservada no AppState
+            if (baseA != null && baseA.Any())
+                _appState.BaseA = baseA;
+
+            // limpar estados visuais relacionados à Base B (fechar previews e resultados)
+            alignmentResult = null;
+            headerResult = null;
+
+            // limpar dados locais de BaseB para que o usuário precise recarregar as abas
+            baseB = new List<GenericRegistration>();
+            _appState.BaseB = new List<GenericRegistration>();
+
+            // resetar mapeamento UI
+            if (baseA != null && baseA.Any())
+                InicializarMapeamento();
+            else
+            {
+                mapeamento = new Dictionary<string, string>();
+                mapeamentoUI = new Dictionary<string, string>();
+            }
+
+            StateHasChanged();
+        }
+        catch
+        {
+            // ignore
+        }
     }
 
     // 🔥 Carregar abas
@@ -224,8 +315,14 @@
 
         _appState.BaseA = baseA;
         _appState.BaseB = baseB;
-        _appState.NomeArquivoA = streamA is FileStream fsA ? Path.GetFileName(fsA.Name) : "Base A";
-        _appState.NomeArquivoB = streamB is FileStream fsB ? Path.GetFileName(fsB.Name) : "Base B";
+        // não sobrescrever nomes já capturados no upload (via IBrowserFile.Name)
+        if (string.IsNullOrWhiteSpace(_appState.NomeArquivoA))
+            _appState.NomeArquivoA = streamA is FileStream fsA ? Path.GetFileName(fsA.Name) : "Base A";
+
+        if (string.IsNullOrWhiteSpace(_appState.NomeArquivoB))
+            _appState.NomeArquivoB = streamB is FileStream fsB ? Path.GetFileName(fsB.Name) : "Base B";
+        // garantir originalNomeArquivoB esteja preenchido
+        originalNomeArquivoB ??= _appState.NomeArquivoB;
         InicializarMapeamento();
     }
 
@@ -249,6 +346,19 @@
             mapeamento[item.Key] = item.Value;
             mapeamentoUI[item.Key] = item.Value;
         }
+    }
+
+    private void AlinharBaseB()
+    {
+        var result = _autoMappingService.AlinharBaseB(baseA, baseB);
+
+        // atualizar baseB local e estado da aplicação
+        baseB = result.Alinhada;
+        _appState.BaseB = baseB;
+
+        // atualizar mapeamento utilizado
+        mapeamento = result.Mapeamento;
+        mapeamentoUI = mapeamento.ToDictionary(k => k.Key, v => v.Value);
     }
 
     private void CompararHeaders()
@@ -280,5 +390,42 @@
         _appState.Mapeamento = mapeamento;
 
         nav.NavigateTo("/compare");
+    }
+
+    private void BaixarCsv()
+    {
+        nav.NavigateTo("/download/baseb/csv", true);
+    }
+
+    private void BaixarXlsx()
+    {
+        nav.NavigateTo("/download/baseb/xlsx", true);
+    }
+
+    private void HandleAligned(AlignmentResult result)
+    {
+        alignmentResult = result;
+    }
+
+    private void HandleConfirmed()
+    {
+        if (alignmentResult != null)
+        {
+            baseB = alignmentResult.Alinhada;
+            _appState.BaseB = baseB;
+
+            mapeamento = alignmentResult.Mapeamento;
+            mapeamentoUI = mapeamento.ToDictionary(k => k.Key, v => v.Value);
+            // garantir que o nome do arquivo para download mantenha o nome original do arquivo B
+            if (!string.IsNullOrWhiteSpace(originalNomeArquivoB))
+                _appState.NomeArquivoB = originalNomeArquivoB;
+        }
+    }
+
+    private void HandleClosePreview()
+    {
+        // simplesmente descarta o resultado de alinhamento (fecha o preview)
+        alignmentResult = null;
+        StateHasChanged();
     }
 }

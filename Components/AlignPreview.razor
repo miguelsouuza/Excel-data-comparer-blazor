@@ -1,0 +1,158 @@
+@using Microsoft.AspNetCore.Components
+@using System.Linq
+@inject AppState _appState
+
+<div class="pa-4">
+    <div style="display:flex; justify-content:space-between; align-items:center;">
+        <h4 style="margin:0">Resultados do Alinhamento</h4>
+        <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="Close">Fechar</MudButton>
+    </div>
+
+    @if (Result == null)
+    {
+        <div>Nenhum resultado disponível</div>
+    }
+    else
+    {
+        <MudGrid>
+            <MudItem xs="12" md="4">
+                <MudPaper Class="pa-3">
+                    <MudText Typo="Typo.subtitle2">Renomeadas</MudText>
+                    @if (Result.Renomeadas.Any())
+                    {
+                        <MudList Dense="true" T="string">
+                            @foreach (var r in Result.Renomeadas)
+                            {
+                                <MudListItem>
+                                    @r.ColunaA -> @r.ColunaB
+                                </MudListItem>
+                            }
+                        </MudList>
+                    }
+                    else
+                    {
+                        <div>—</div>
+                    }
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" md="4">
+                <MudPaper Class="pa-3">
+                    <MudText Typo="Typo.subtitle2">Mantidas</MudText>
+                    @if (Result.Mantidas.Any())
+                    {
+                        <MudList Dense="true" T="string">
+                            @foreach (var m in Result.Mantidas)
+                            {
+                                <MudListItem>
+                                    @m
+                                </MudListItem>
+                            }
+                        </MudList>
+                    }
+                    else
+                    {
+                        <div>—</div>
+                    }
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" md="4">
+                <MudPaper Class="pa-3">
+                    <MudText Typo="Typo.subtitle2">Removidas</MudText>
+                    @if (Result.Removidas.Any())
+                    {
+                        <MudList Dense="true" T="string">
+                            @foreach (var rm in Result.Removidas)
+                            {
+                                <MudListItem>
+                                    @rm
+                                </MudListItem>
+                            }
+                        </MudList>
+                    }
+                    else
+                    {
+                        <div>—</div>
+                    }
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+
+        <div class="mt-3">
+            <MudText Typo="Typo.subtitle2">Preview (primeiras 10 linhas)</MudText>
+
+            @if (Result.Alinhada.Any())
+            {
+                var headers = Result.Alinhada.First().Campos.Keys.ToList();
+                <table class="mud-table-root mud-table-root-bordered" style="width:100%; border-collapse:collapse;">
+                    <thead>
+                        <tr>
+                            @foreach (var h in headers)
+                            {
+                                <th style="border:1px solid #ddd; padding:6px;">@h</th>
+                            }
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in Result.Alinhada.Take(10))
+                        {
+                            <tr>
+                                @foreach (var h in headers)
+                                {
+                                    <td style="border:1px solid #ddd; padding:6px;">@row.Campos[h]</td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+            else
+            {
+                <div>Nenhuma linha para mostrar</div>
+            }
+        </div>
+
+        <div class="mt-3">
+            <MudButton Color="Color.Success" OnClick="Confirm">Confirmar e usar este resultado</MudButton>
+        </div>
+
+        <div class="mt-3">
+            <ExportComponent Enabled="confirmed" />
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public AlignmentResult Result { get; set; }
+
+    [Parameter]
+    public EventCallback OnConfirmed { get; set; }
+
+    private bool confirmed = false;
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    private async Task Close()
+    {
+        // reset local confirmed state
+        confirmed = false;
+
+        if (OnClose.HasDelegate)
+            await OnClose.InvokeAsync();
+    }
+
+    private async Task Confirm()
+    {
+        // atualiza AppState para usar Alinhada
+        _appState.BaseB = Result.Alinhada;
+        _appState.Mapeamento = Result.Mapeamento;
+
+        confirmed = true;
+
+        if (OnConfirmed.HasDelegate)
+            await OnConfirmed.InvokeAsync();
+    }
+}

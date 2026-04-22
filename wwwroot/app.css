@@ -1,6 +1,15 @@
 html, body {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
+.lista-dentro {
+    list-style-position: inside;
+    padding-left: 0;
+    margin: 0;
+}
+
+    .lista-dentro li {
+        padding: 6px 0;
+    }
 
 .text-truncate {
     max-width: 200px;

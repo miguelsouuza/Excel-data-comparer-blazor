@@ -1,0 +1,32 @@
+@using Microsoft.AspNetCore.Components
+@inject NavigationManager nav
+
+<div class="mt-2">
+    <MudText Typo="Typo.subtitle2">Exportar resultados</MudText>
+
+    <MudStack Row="true" Spacing="1" Class="mt-2">
+        <MudButton Color="Color.Info" Disabled="!Enabled" OnClick="ExportCsv">Baixar CSV</MudButton>
+        <MudButton Color="Color.Info" Disabled="!Enabled" OnClick="ExportXlsx">Baixar XLSX</MudButton>
+        <MudButton Color="Color.Info" Disabled="!Enabled" OnClick="ExportJson">Baixar JSON</MudButton>
+    </MudStack>
+</div>
+
+@code {
+    [Parameter]
+    public bool Enabled { get; set; } = false;
+
+    private void ExportCsv()
+    {
+        nav.NavigateTo("/download/baseb/csv", true);
+    }
+
+    private void ExportXlsx()
+    {
+        nav.NavigateTo("/download/baseb/xlsx", true);
+    }
+
+    private void ExportJson()
+    {
+        nav.NavigateTo("/download/baseb/json", true);
+    }
+}
