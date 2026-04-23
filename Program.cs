@@ -1,4 +1,5 @@
 using DataComparer.Components;
+using DataComparer.Services;
 using MudBlazor.Services;
 using OfficeOpenXml;
 
@@ -40,7 +41,7 @@ app.MapGet("/download/baseb/csv", (AppState state, FileService svc) =>
     if (bytes == null || bytes.Length == 0)
         return Results.NotFound();
 
-    var name = state.NomeArquivoB ?? "baseb";
+    var name = state.NomeArquivoA ?? state.NomeArquivoB ?? "baseb";
     var baseName = System.IO.Path.GetFileNameWithoutExtension(name);
     var fileName = baseName + ".csv";
     return Results.File(bytes, "text/csv; charset=utf-8", fileName);
@@ -57,6 +58,7 @@ app.MapGet("/download/baseb/xlsx", async (AppState state, FileService svc) =>
 
         // tentar obter nomes das abas da Base A (se o stream A estiver disponível)
         List<string>? desiredNames = null;
+        List<List<string>>? desiredHeaders = null;
         if (state.StreamA != null)
         {
             try
@@ -67,6 +69,12 @@ app.MapGet("/download/baseb/xlsx", async (AppState state, FileService svc) =>
                 msA.Position = 0;
                 using var pkgA = new ExcelPackage(msA);
                 desiredNames = pkgA.Workbook.Worksheets.Select(ws => ws.Name).ToList();
+                desiredHeaders = pkgA.Workbook.Worksheets.Select(ws =>
+                    Enumerable.Range(ws.Dimension.Start.Column, ws.Dimension.End.Column - ws.Dimension.Start.Column + 1)
+                        .Select(c => ws.Cells[ws.Dimension.Start.Row, c].Text)
+                        .Select(h => h ?? string.Empty)
+                        .ToList()
+                ).ToList();
             }
             catch
             {
@@ -74,11 +82,11 @@ app.MapGet("/download/baseb/xlsx", async (AppState state, FileService svc) =>
             }
         }
 
-        var bytes = await svc.GerarExcelBytesMultiSheetAsync(origBytes, headersA, mapping, desiredNames);
+        var bytes = await svc.GerarExcelBytesMultiSheetAsync(origBytes, headersA, mapping, desiredNames, desiredHeaders);
         if (bytes == null || bytes.Length == 0)
             return Results.NotFound();
 
-        var name = state.NomeArquivoB ?? "baseb";
+        var name = state.NomeArquivoA ?? state.NomeArquivoB ?? "baseb";
         var baseName = System.IO.Path.GetFileNameWithoutExtension(name);
         var fileName = baseName + ".xlsx";
         return Results.File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
@@ -89,7 +97,7 @@ app.MapGet("/download/baseb/xlsx", async (AppState state, FileService svc) =>
     if (single == null || single.Length == 0)
         return Results.NotFound();
 
-    var fname = state.NomeArquivoB ?? "baseb";
+    var fname = state.NomeArquivoA ?? state.NomeArquivoB ?? "baseb";
     var fn = System.IO.Path.GetFileNameWithoutExtension(fname) + ".xlsx";
     return Results.File(single, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fn);
 });
@@ -101,7 +109,7 @@ app.MapGet("/download/baseb/json", (AppState state) =>
 
     var json = System.Text.Json.JsonSerializer.Serialize(state.BaseB);
     var bytes = System.Text.Encoding.UTF8.GetBytes(json);
-    var name = state.NomeArquivoB ?? "baseb";
+    var name = state.NomeArquivoA ?? state.NomeArquivoB ?? "baseb";
     var baseName = System.IO.Path.GetFileNameWithoutExtension(name);
     var fileName = baseName + ".json";
     return Results.File(bytes, "application/json; charset=utf-8", fileName);

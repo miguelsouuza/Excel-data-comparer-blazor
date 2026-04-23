@@ -1,0 +1,126 @@
+﻿@inject NavigationManager nav
+@inject IHeaderCompareService _headerCompareService
+@inject IAutoMappingService _autoMappingService
+@inject AppState _appState
+
+<MudPaper Class="pa-4 mt-4 mapping-container">
+    <MudPaper Class="d-flex justify-space-between flex-grow-1 gap-4" Elevation="0">
+        <MudText Typo="Typo.h6">Mapeamento de Colunas</MudText>
+        <MudIconButton Class="mapping-close " Icon="@Icons.Material.Filled.Close" Color="Color.Default" Size="Size.Medium" OnClick="ToggleMappingColumn" />
+    </MudPaper>
+
+    <!-- 🔹 IDs -->
+    <MudGrid Class="mb-4">
+        <MudItem xs="6">
+            <MudSelect T="string" Label="ID Base A" @bind-Value="ColunaA">
+                @foreach (var idColA in ColunasA)
+                {
+                    <MudSelectItem @key="idColA" Value="@idColA">@idColA</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+
+        <MudItem xs="6">
+            <MudSelect T="string" Label="ID Base B" @bind-Value="ColunaB">
+                @foreach (var IdcolB in ColunasB)
+                {
+                    <MudSelectItem @key="IdcolB" Value="@IdcolB">@IdcolB</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+    </MudGrid>
+
+    <MudButton Class="mapping-top-right" Color="Color.Primary" OnClick="AutoMapear" Variant="Variant.Filled">AUTO MAPEAR 🤖</MudButton>
+
+    @foreach (var mapColA in ColunasA)
+    {
+        <MudGrid Class="mb-2">
+            <MudItem xs="5">
+                <MudText>@mapColA</MudText>
+            </MudItem>
+
+            <MudItem xs="7">
+                <MudSelect T="string"
+                           @key="mapColA"
+                           @bind-Value="MapeamentoUI[mapColA]">
+
+                    <MudSelectItem T="string">Selecione</MudSelectItem>
+
+                    @foreach (var enabledColB in GetColunasDisponiveis(mapColA))
+                    {
+                        <MudSelectItem @key="enabledColB" Value="@enabledColB">@enabledColB</MudSelectItem>
+                    }
+
+                </MudSelect>
+            </MudItem>
+        </MudGrid>
+    }
+
+    <MudButton Class="mapping-bottom-right" Color="Color.Success" OnClick="IrParaComparacao" Variant="Variant.Filled">COMPARAR DADOS</MudButton>
+</MudPaper>
+
+@code {
+    [Parameter]
+    public bool showMappingColumn { get; set; } = false;
+    [Parameter]
+    public HeaderCompareResult? headerResult { get; set; } = new HeaderCompareResult();
+    [Parameter]
+    public List<GenericRegistration> baseA { get; set; } = new List<GenericRegistration>();
+    [Parameter]
+    public List<GenericRegistration> baseB { get; set; } = new List<GenericRegistration>();
+    [Parameter]
+    public List<string> ColunasA { get; set; } = new List<string>();
+    [Parameter]
+    public List<string> ColunasB { get; set; } = new List<string>();
+    [Parameter]
+    public Dictionary<string, string> Mapeamento { get; set; } = new();
+    [Parameter]
+    public string ColunaA { get; set; } = string.Empty;
+    [Parameter]
+    public string ColunaB { get; set; } = string.Empty;
+    [Parameter]
+    public Dictionary<string, string> MapeamentoUI { get; set; } = new();
+
+    private void ToggleMappingColumn()
+    {
+        showMappingColumn = !showMappingColumn;
+    }
+
+    private void AutoMapear()
+    {
+        var auto = _autoMappingService.GerarMapeamento(
+            baseA.First().Campos.Keys.ToList(),
+            baseB.First().Campos.Keys.ToList()
+        );
+
+        foreach (var item in auto)
+        {
+            Mapeamento[item.Key] = item.Value;
+            MapeamentoUI[item.Key] = item.Value;
+        }
+    }
+
+    private List<string> GetColunasDisponiveis(string colunaAtual)
+    {
+        var todas = baseB.First().Campos.Keys.ToList();
+
+        var usadas = Mapeamento
+            .Where(x => x.Key != colunaAtual)
+            .Select(x => x.Value)
+            .Where(v => !string.IsNullOrWhiteSpace(v))
+            .ToHashSet();
+
+        return todas
+            .Where(col => !usadas.Contains(col) || Mapeamento[colunaAtual] == col)
+            .ToList();
+    }
+
+    private void IrParaComparacao()
+    {
+        _appState.ColunaA = ColunaA;
+        _appState.ColunaB = ColunaB;
+        _appState.Mapeamento = Mapeamento;
+
+        nav.NavigateTo("/compare");
+    }
+}

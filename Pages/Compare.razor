@@ -10,9 +10,11 @@
         Resultado da Comparação 📊
     </MudText>
 
-    @if (resultado == null)
+    @if (isLoading)
     {
-        <MudProgressCircular Indeterminate="true" />
+        <div class="d-flex justify-center">
+            <MudProgressCircular Indeterminate="true" Size="Size.Large" />
+        </div>
     }
     else
     {
@@ -143,9 +145,13 @@
 
 @code {
     private CompareResult resultado;
+    private bool isLoading = true;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
+        // roda de forma assíncrona para não bloquear o circuito e mostrar loading
+        isLoading = true;
+
         if (_appState.BaseA == null ||
             _appState.BaseB == null ||
             string.IsNullOrWhiteSpace(_appState.ColunaA) ||
@@ -155,15 +161,20 @@
             {
                 Erros = new List<string> { "Dados insuficientes para comparação" }
             };
+            isLoading = false;
             return;
         }
 
-        resultado = _compareService.Compare(
+        // Se o serviço tiver uma versão assíncrona, prefira chamá‑la. Caso não, executar em Task.Run para não bloquear.
+        resultado = await Task.Run(() => _compareService.Compare(
             _appState.BaseA,
             _appState.BaseB,
             _appState.ColunaA,
             _appState.ColunaB,
             _appState.Mapeamento
-        );
+        ));
+
+        isLoading = false;
+        StateHasChanged();
     }
 }

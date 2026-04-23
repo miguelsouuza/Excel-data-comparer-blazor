@@ -2,11 +2,11 @@
 @using System.Linq
 @inject AppState _appState
 
-<div class="pa-4">
-    <div style="display:flex; justify-content:space-between; align-items:center;">
-        <h4 style="margin:0">Resultados do Alinhamento</h4>
-        <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="Close">Fechar</MudButton>
-    </div>
+<MudPaper Class="pa-4">
+    <MudPaper Class="d-flex justify-space-between flex-grow-1 gap-4 mb-4" Elevation="0">
+        <MudText Typo="Typo.h6">Resultados do Alinhamento</MudText>
+        <MudIconButton Class="mapping-close " Color="Color.Default" Size="Size.Small" Icon="@Icons.Material.Filled.Close" OnClick="Close"></MudIconButton>
+    </MudPaper>
 
     @if (Result == null)
     {
@@ -85,27 +85,22 @@
             @if (Result.Alinhada.Any())
             {
                 var headers = Result.Alinhada.First().Campos.Keys.ToList();
-                <table class="mud-table-root mud-table-root-bordered" style="width:100%; border-collapse:collapse;">
-                    <thead>
-                        <tr>
-                            @foreach (var h in headers)
-                            {
-                                <th style="border:1px solid #ddd; padding:6px;">@h</th>
-                            }
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var row in Result.Alinhada.Take(10))
+
+                <MudTable Items="Result.Alinhada.Take(10)" Dense="true" Bordered="true" Hover="true">
+                    <HeaderContent>
+                        @foreach (var h in headers)
                         {
-                            <tr>
-                                @foreach (var h in headers)
-                                {
-                                    <td style="border:1px solid #ddd; padding:6px;">@row.Campos[h]</td>
-                                }
-                            </tr>
+                            <MudTh>@h</MudTh>
                         }
-                    </tbody>
-                </table>
+                    </HeaderContent>
+
+                    <RowTemplate Context="row">
+                        @foreach (var h in headers)
+                        {
+                            <MudTd>@row.Campos[h]</MudTd>
+                        }
+                    </RowTemplate>
+                </MudTable>
             }
             else
             {
@@ -121,7 +116,7 @@
             <ExportComponent Enabled="confirmed" />
         </div>
     }
-</div>
+</MudPaper>
 
 @code {
     [Parameter]

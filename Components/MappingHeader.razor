@@ -1,0 +1,43 @@
+﻿
+    <MudPaper Class="d-flex justify-space-between flex-grow-1 gap-4" Elevation="0">
+        <MudText Typo="Typo.h6">Resultado dos Headers</MudText>
+        <MudIconButton Class="mapping-close " Icon="@Icons.Material.Filled.Close" Color="Color.Default" Size="Size.Medium" OnClick="ToggleMappingHeader" />
+    </MudPaper>
+    <MudGrid>
+        <MudItem xs="4">
+            <MudText Color="Color.Success">Em comum</MudText>
+            @foreach (var item in headerResult.EmComum)
+            {
+                <MudChip T="string" Color="Color.Success">@item</MudChip>
+            }
+        </MudItem>
+
+        <MudItem xs="4">
+            <MudText Color="Color.Warning">Apenas A</MudText>
+            @foreach (var item in headerResult.ApenasA)
+            {
+                <MudChip T="string" Color="Color.Warning">@item</MudChip>
+            }
+        </MudItem>
+
+        <MudItem xs="4">
+            <MudText Color="Color.Error">Apenas B</MudText>
+            @foreach (var item in headerResult.ApenasB)
+            {
+                <MudChip T="string" Color="Color.Error">@item</MudChip>
+            }
+        </MudItem>
+    </MudGrid>
+
+
+@code {
+    [Parameter]
+    public bool showMappingHeader { get; set; } = false;
+    [Parameter]
+    public HeaderCompareResult? headerResult { get; set; } = new HeaderCompareResult();
+
+    private void ToggleMappingHeader()
+    {
+        showMappingHeader = !showMappingHeader;
+    }
+}
