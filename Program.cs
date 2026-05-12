@@ -36,8 +36,8 @@ app.UseAntiforgery();
 
 // Endpoints para download da Base B atual em CSV ou XLSX
 app.MapGet("/download/baseb/csv", (AppState state, FileService svc) =>
-{
-    var bytes = svc.GerarCsvBytes(state.BaseB);
+{   
+    var bytes = svc.GerarCsvBytes(state.BaseB, state.DelimitadorCsv);
     if (bytes == null || bytes.Length == 0)
         return Results.NotFound();
 

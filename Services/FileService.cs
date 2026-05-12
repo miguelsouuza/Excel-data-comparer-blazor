@@ -107,19 +107,22 @@ namespace DataComparer.Services
             return candidate;
         }
 
-        public byte[] GerarCsvBytes(List<GenericRegistration> baseDados)
+        public byte[] GerarCsvBytes(List<GenericRegistration> baseDados, string delimitador = ";")
         {
+            var separador = delimitador == "\t"
+                            ? '\t'
+                            : delimitador[0];
             if (baseDados == null || !baseDados.Any())
                 return Array.Empty<byte>();
 
             var headers = baseDados.First().Campos.Keys.ToList();
             var sb = new System.Text.StringBuilder();
-            sb.AppendLine(string.Join(',', headers.Select(h => EscapeCsv(h))));
+            sb.AppendLine(string.Join(separador, headers.Select(h => EscapeCsv(h, separador))));
 
             foreach (var row in baseDados)
             {
                 var vals = headers.Select(h => row.Campos.TryGetValue(h, out var v) ? v : string.Empty);
-                sb.AppendLine(string.Join(',', vals.Select(v => EscapeCsv(v))));
+                sb.AppendLine(string.Join(separador, vals.Select(v => EscapeCsv(v,separador))));
             }
 
             var contentBytes = System.Text.Encoding.UTF8.GetBytes(sb.ToString());
@@ -135,12 +138,22 @@ namespace DataComparer.Services
             return contentBytes;
         }
 
-        private string EscapeCsv(string s)
+        private string EscapeCsv(string s, char separador)
         {
-            if (s == null) return string.Empty;
-            if (s.Contains('"')) s = s.Replace("\"", "\"\"");
-            if (s.Contains(',') || s.Contains('\n') || s.Contains('\r') || s.Contains('"'))
+            if (s == null)
+                return string.Empty;
+
+            if (s.Contains('"'))
+                s = s.Replace("\"", "\"\"");
+
+            if (s.Contains(separador)
+                || s.Contains('\n')
+                || s.Contains('\r')
+                || s.Contains('"'))
+            {
                 return $"\"{s}\"";
+            }
+
             return s;
         }
 
@@ -480,4 +493,5 @@ namespace DataComparer.Services
             };
         }
     }
+    
 }

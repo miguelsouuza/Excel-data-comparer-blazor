@@ -107,8 +107,36 @@
                 <div>Nenhuma linha para mostrar</div>
             }
         </div>
+        <MudPaper Class="pa-3 mt-4">
+
+            <MudText Typo="Typo.subtitle2" Class="mb-2">
+                Delimitador CSV
+            </MudText>
+
+            <MudSelect T="string"
+                       Label="Selecione o delimitador"
+                       @bind-Value="delimitadorCsv">
+
+                <MudSelectItem T="string" Value="@pontoVirgula">
+                    Ponto e vírgula (;)
+                </MudSelectItem>
+
+                <MudSelectItem T="string" Value="@virgula">
+                    Vírgula (,)
+                </MudSelectItem>
+
+                <MudSelectItem T="string" Value="@pipe">
+                    Pipe (|)
+                </MudSelectItem>
+
+                <MudSelectItem T="string" Value="@TAB">
+                    Tabulação (\t)
+                </MudSelectItem>
+            </MudSelect>
+        </MudPaper>
 
         <div class="mt-3">
+
             <MudButton Color="Color.Success" OnClick="Confirm">Confirmar e usar este resultado</MudButton>
         </div>
 
@@ -130,6 +158,13 @@
     [Parameter]
     public EventCallback OnClose { get; set; }
 
+    private string delimitadorCsv = ";";
+    private const string TAB = "\t";
+    private const string virgula = ",";
+    private const string pipe = "|";
+    private const string pontoVirgula = ";";
+
+
     private async Task Close()
     {
         // reset local confirmed state
@@ -144,6 +179,7 @@
         // atualiza AppState para usar Alinhada
         _appState.BaseB = Result.Alinhada;
         _appState.Mapeamento = Result.Mapeamento;
+        _appState.DelimitadorCsv = delimitadorCsv;
 
         confirmed = true;
 
