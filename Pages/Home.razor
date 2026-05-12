@@ -19,7 +19,12 @@
         <MudItem xs="12" md="6">
             <MudPaper Class="pa-4">
                 <MudText Typo="Typo.h6">Base A</MudText>
-                <InputFile OnChange="UploadA" />
+                <MudFileUpload T="IBrowserFile"
+                               FilesChanged="UploadA"
+                               Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.UploadFile">
+                </MudFileUpload>
 
                 <MudSelect T="string" Label="Aba Base A" @bind-Value="abaSelecionadaA" Class="mt-2">
                     @foreach (var aba in abasA)
@@ -33,7 +38,12 @@
         <MudItem xs="12" md="6">
             <MudPaper Class="pa-4">
                 <MudText Typo="Typo.h6">Base B</MudText>
-                <InputFile OnChange="UploadB" />
+                <MudFileUpload T="IBrowserFile"
+                               FilesChanged="UploadB"
+                               Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.UploadFile">
+                </MudFileUpload>
 
                 <MudSelect T="string" Label="Aba Base B" @bind-Value="abaSelecionadaB" Class="mt-2">
                     @foreach (var aba in abasB)
@@ -91,17 +101,17 @@
         @if (_appState.ShowMappingColumn)
         {
             <MudPaper Class="pa-4 mt-4">
-                <MappingColumn BaseA="baseA" 
-                    BaseB="baseB" 
-                    Mapeamento="mapeamento" 
-                    MapeamentoUI="mapeamentoUI" 
-                    showMappingColumn="_appState.ShowMappingColumn" 
-                    IdsA="IdsA" IdsB="IdsB"
-                    ColunasA="colunasA" ColunasB="colunasB"/>
+                <MappingColumn BaseA="baseA"
+                               BaseB="baseB"
+                               Mapeamento="mapeamento"
+                               MapeamentoUI="mapeamentoUI"
+                               showMappingColumn="_appState.ShowMappingColumn"
+                               IdsA="IdsA" IdsB="IdsB"
+                               ColunasA="colunasA" ColunasB="colunasB" />
             </MudPaper>
         }
-        
 
+        
         <TableComponent Base="baseA" Title="Preview Base A" />
         <TableComponent Base="baseB" Title="Preview Base B" />
     }
@@ -128,6 +138,8 @@
     private List<GenericRegistration> baseB = new();
     private AlignmentResult? alignmentResult;
     private string? originalNomeArquivoB;
+
+    private bool carregandoArquivo = false;
     
     protected override void OnInitialized()
     {
@@ -160,125 +172,73 @@
     }
         
     // 🔹 Upload
-    private async Task UploadA(InputFileChangeEventArgs e)
+    private async Task UploadA(IBrowserFile file)
     {
-        var memory = new MemoryStream();
-        await e.File.OpenReadStream(50 * 1024 * 1024).CopyToAsync(memory);
-        memory.Position = 0;
+        if (carregandoArquivo)
+            return;
 
-        streamA = memory;
+        carregandoArquivo = true;
 
-        // salvar stream original no AppState para permitir mapear nomes de abas
         try
         {
+            var memory = new MemoryStream();
+            await file
+                .OpenReadStream(50 * 1024 * 1024)
+                .CopyToAsync(memory);
             memory.Position = 0;
-            _appState.StreamA = new System.IO.MemoryStream();
-            await memory.CopyToAsync(_appState.StreamA);
-            _appState.StreamA.Position = 0;
-            streamA.Position = 0;
-        }
-        catch
-        {
-            // ignore
-        }
-        var extensao = Path.GetExtension(e.File.Name).ToLower();
+            streamA = memory;
+            var extensao = Path.GetExtension(file.Name).ToLower();
 
-        if (extensao == ".xlsx")
-        {
-            abasA = _fileService.ObterAbas(memory);
-            abaSelecionadaA = abasA.FirstOrDefault() ?? "";
+            if (extensao == ".xlsx")
+            {
+                abasA = _fileService.ObterAbas(memory);
+                abaSelecionadaA = abasA.FirstOrDefault() ?? "";
+            }
+            else
+            {
+                abasA = new() { "Arquivo Único" };
+                abaSelecionadaA = "Arquivo Único";
+            }
+            _appState.NomeArquivoA = file.Name;
         }
-        else
+        finally
         {
-            abasA = new List<string> { "Arquivo Único" };
-            abaSelecionadaA = "Arquivo Único";
-        }
-        // salvar nome original do arquivo enviado (IBrowserFile.Name)
-        try
-        {
-            _appState.NomeArquivoA = System.IO.Path.GetFileName(e.File.Name);
-        }
-        catch
-        {
-            // ignore
+            carregandoArquivo = false;
         }
     }
 
-    private async Task UploadB(InputFileChangeEventArgs e)
+    private async Task UploadB(IBrowserFile file)
     {
-        var memory = new MemoryStream();
-        await e.File.OpenReadStream(50 * 1024 * 1024).CopyToAsync(memory);
-        memory.Position = 0;
+        if (carregandoArquivo)
+            return;
 
-        streamB = memory;
+        carregandoArquivo = true;
 
-        // salvar stream original no AppState para permitir export multi-aba
         try
         {
-            // clonar/guardar o MemoryStream no AppState
+            var memory = new MemoryStream();
+            await file
+                .OpenReadStream(50 * 1024 * 1024)
+                .CopyToAsync(memory);
+
             memory.Position = 0;
-            _appState.StreamB = new System.IO.MemoryStream();
-            await memory.CopyToAsync(_appState.StreamB);
-            _appState.StreamB.Position = 0;
-            // também manter a referência local
-            streamB.Position = 0;
-        }
-        catch
-        {
-            // ignore
-        }
-        var extensao = Path.GetExtension(e.File.Name).ToLower();
-
-        if (extensao == ".xlsx")
-        {
-            abasB = _fileService.ObterAbas(memory);
-            abaSelecionadaB = abasB.FirstOrDefault() ?? "";
-        }
-        else
-        {
-            abasB = new List<string> { "Arquivo Único" };
-            abaSelecionadaB = "Arquivo Único";
-        }
-        // salvar nome original do arquivo enviado (IBrowserFile.Name)
-        try
-        {
-            originalNomeArquivoB = System.IO.Path.GetFileName(e.File.Name);
-            _appState.NomeArquivoB = originalNomeArquivoB;
-        }
-        catch
-        {
-            // ignore
-        }
-        // Ao selecionar um novo arquivo B, queremos recarregar a página mantendo a Base A no AppState.
-        // Se já existe BaseA carregada localmente, garante que está salva no AppState antes do refresh.
-        try
-        {
-            // garante BaseA está preservada no AppState
-            if (baseA != null && baseA.Any())
-                _appState.BaseA = baseA;
-
-            // limpar estados visuais relacionados à Base B (fechar previews e resultados)
-            alignmentResult = null;
-            headerResult = null;
-
-            // limpar dados locais de BaseB para que o usuário precise recarregar as abas
-            baseB = new List<GenericRegistration>();
-            _appState.BaseB = new List<GenericRegistration>();
-
-            // resetar mapeamento UI
-            if (baseA != null && baseA.Any())
-                InicializarMapeamento();
+            streamB = memory;
+            var extensao = Path.GetExtension(file.Name).ToLower();
+            if (extensao == ".xlsx")
+            {
+                abasB = _fileService.ObterAbas(memory);
+                abaSelecionadaB = abasB.FirstOrDefault() ?? "";
+            }
             else
             {
-                mapeamento = new Dictionary<string, string>();
-                mapeamentoUI = new Dictionary<string, string>();
+                abasB = new() { "Arquivo Único" };
+                abaSelecionadaB = "Arquivo Único";
             }
-
-            StateHasChanged();
+            _appState.NomeArquivoB = file.Name;
         }
-        catch
+        finally
         {
-            // ignore
+            carregandoArquivo = false;
         }
     }
 
