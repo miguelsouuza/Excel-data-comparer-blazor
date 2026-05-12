@@ -79,23 +79,23 @@
         @if (headerResult != null)
         {
             <!-- 🔹 Mapeamento Headers-->
-            @if (showMappingHeader)
+            @if (_appState.ShowMappingHeader)
             {
                 <MudPaper Class="pa-4 mt-4">
-                    <MappingHeader HeaderResult="headerResult" showMappingHeader="showMappingHeader" />
+                    <MappingHeader HeaderResult="headerResult" showMappingHeader="_appState.ShowMappingHeader" />
                 </MudPaper>
             }
         }
         
         <!-- 🔹 Mapeamento Colunas-->
-        @if (showMappingColumn)
+        @if (_appState.ShowMappingColumn)
         {
             <MudPaper Class="pa-4 mt-4">
                 <MappingColumn BaseA="baseA" 
                     BaseB="baseB" 
                     Mapeamento="mapeamento" 
                     MapeamentoUI="mapeamentoUI" 
-                    showMappingColumn="showMappingColumn" 
+                    showMappingColumn="_appState.ShowMappingColumn" 
                     IdsA="IdsA" IdsB="IdsB"
                     ColunasA="colunasA" ColunasB="colunasB"/>
             </MudPaper>
@@ -122,8 +122,6 @@
     private Stream? streamA;
     private Stream? streamB;
 
-    private bool showMappingHeader = false;
-
     private HeaderCompareResult? headerResult;
 
     private List<GenericRegistration> baseA = new();
@@ -131,8 +129,35 @@
     private AlignmentResult? alignmentResult;
     private string? originalNomeArquivoB;
     
+    protected override void OnInitialized()
+    {
+        // 🔹 Restaurar bases
+        baseA = _appState.BaseA ?? new();
+        baseB = _appState.BaseB ?? new();
 
-    private bool showMappingColumn = false;
+        // 🔹 Restaurar mapeamentos
+        mapeamento = _appState.Mapeamento ?? new();
+        mapeamentoUI = _appState.MapeamentoUI ?? new();
+
+        // 🔹 Restaurar IDs
+        IdsA = _appState.IdsA ?? new();
+        IdsB = _appState.IdsB ?? new();
+
+        // 🔹 Restaurar nomes
+        originalNomeArquivoB = _appState.NomeArquivoB;
+
+        // 🔹 Restaurar colunas
+        if (baseA.Any())
+        {
+            var colunas = baseA.First().Campos.Keys;
+
+            if (!mapeamento.Any())
+                mapeamento = colunas.ToDictionary(k => k, v => "");
+
+            if (!mapeamentoUI.Any())
+                mapeamentoUI = colunas.ToDictionary(k => k, v => "");
+        }
+    }
         
     // 🔹 Upload
     private async Task UploadA(InputFileChangeEventArgs e)
@@ -355,8 +380,8 @@
             baseA.First().Campos.Keys.ToList(),
             baseB.First().Campos.Keys.ToList());
 
-        showMappingColumn = true;
-        showMappingHeader = true;
+        _appState.ShowMappingColumn = true;
+        _appState.ShowMappingHeader = true;
         alignmentResult = null;
         StateHasChanged();
     }
@@ -376,8 +401,8 @@
     private void HandleAligned(AlignmentResult result)
     {
         alignmentResult = result;
-        showMappingColumn = false;
-        showMappingHeader = false;
+        _appState.ShowMappingColumn = false;
+        _appState.ShowMappingHeader = false;
     }
 
     private void HandleConfirmed()

@@ -1,4 +1,5 @@
-﻿
+﻿@inject AppState _appState
+
     <MudPaper Class="d-flex justify-space-between flex-grow-1 gap-4" Elevation="0">
         <MudText Typo="Typo.h6">Resultado dos Headers</MudText>
         <MudIconButton Class="mapping-close " Icon="@Icons.Material.Filled.Close" Color="Color.Default" Size="Size.Medium" OnClick="ToggleMappingHeader" />
@@ -38,6 +39,6 @@
 
     private void ToggleMappingHeader()
     {
-        showMappingHeader = !showMappingHeader;
+        _appState.ShowMappingHeader = !showMappingHeader;
     }
 }

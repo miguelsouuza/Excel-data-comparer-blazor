@@ -177,9 +177,14 @@
 
     private void IrParaComparacao()
     {
-        _appState.IdsA = idsALocal;
-        _appState.IdsB = idsBLocal;
+        _appState.BaseA = baseA;
+        _appState.BaseB = baseB;
+
+        _appState.IdsA = IdsA;
+        _appState.IdsB = IdsB;
+
         _appState.Mapeamento = Mapeamento;
+        _appState.MapeamentoUI = MapeamentoUI;
 
         nav.NavigateTo("/compare");
     }
