@@ -156,9 +156,18 @@
         {
             // ignore
         }
+        var extensao = Path.GetExtension(e.File.Name).ToLower();
 
-        abasA = _fileService.ObterAbas(memory);
-        abaSelecionadaA = abasA.FirstOrDefault() ?? "";
+        if (extensao == ".xlsx")
+        {
+            abasA = _fileService.ObterAbas(memory);
+            abaSelecionadaA = abasA.FirstOrDefault() ?? "";
+        }
+        else
+        {
+            abasA = new List<string> { "Arquivo Único" };
+            abaSelecionadaA = "Arquivo Único";
+        }
         // salvar nome original do arquivo enviado (IBrowserFile.Name)
         try
         {
@@ -193,9 +202,18 @@
         {
             // ignore
         }
+        var extensao = Path.GetExtension(e.File.Name).ToLower();
 
-        abasB = _fileService.ObterAbas(memory);
-        abaSelecionadaB = abasB.FirstOrDefault() ?? "";
+        if (extensao == ".xlsx")
+        {
+            abasB = _fileService.ObterAbas(memory);
+            abaSelecionadaB = abasB.FirstOrDefault() ?? "";
+        }
+        else
+        {
+            abasB = new List<string> { "Arquivo Único" };
+            abaSelecionadaB = "Arquivo Único";
+        }
         // salvar nome original do arquivo enviado (IBrowserFile.Name)
         try
         {
@@ -248,22 +266,65 @@
         streamA.Position = 0;
         streamB.Position = 0;
 
-        var dadosA = await _fileService.CarregarExcelPorAba(streamA, abaSelecionadaA);
-        var dadosB = await _fileService.CarregarExcelPorAba(streamB, abaSelecionadaB);
+        var extA = Path.GetExtension(_appState.NomeArquivoA).ToLower();
+        var extB = Path.GetExtension(_appState.NomeArquivoB).ToLower();
 
-        baseA = dadosA.Select(d => new GenericRegistration { Campos = d }).ToList();
-        baseB = dadosB.Select(d => new GenericRegistration { Campos = d }).ToList();
+        List<Dictionary<string, string>> dadosA;
+        List<Dictionary<string, string>> dadosB;
+
+        // 🔹 BASE A
+        if (extA == ".xlsx")
+        {
+            dadosA = await _fileService.CarregarExcelPorAba(
+                streamA,
+                abaSelecionadaA);
+        }
+        else
+        {
+            dadosA = (await _fileService.CarregarTxt(streamA))
+                .Select(x => x.Campos)
+                .ToList();
+        }
+
+        // 🔹 BASE B
+        if (extB == ".xlsx")
+        {
+            dadosB = await _fileService.CarregarExcelPorAba(
+                streamB,
+                abaSelecionadaB);
+        }
+        else
+        {
+            dadosB = (await _fileService.CarregarTxt(streamB))
+                .Select(x => x.Campos)
+                .ToList();
+        }
+
+        baseA = dadosA
+            .Select(d => new GenericRegistration
+            {
+                Campos = d
+            })
+            .ToList();
+
+        baseB = dadosB
+            .Select(d => new GenericRegistration
+            {
+                Campos = d
+            })
+            .ToList();
 
         _appState.BaseA = baseA;
         _appState.BaseB = baseB;
-        // não sobrescrever nomes já capturados no upload (via IBrowserFile.Name)
+
         if (string.IsNullOrWhiteSpace(_appState.NomeArquivoA))
-            _appState.NomeArquivoA = streamA is FileStream fsA ? Path.GetFileName(fsA.Name) : "Base A";
+            _appState.NomeArquivoA = "Base A";
 
         if (string.IsNullOrWhiteSpace(_appState.NomeArquivoB))
-            _appState.NomeArquivoB = streamB is FileStream fsB ? Path.GetFileName(fsB.Name) : "Base B";
-        // garantir originalNomeArquivoB esteja preenchido
+            _appState.NomeArquivoB = "Base B";
+
         originalNomeArquivoB ??= _appState.NomeArquivoB;
+
         InicializarMapeamento();
     }
 

@@ -400,9 +400,18 @@ namespace DataComparer.Services
 
         public List<string> ObterAbas(Stream stream)
         {
-            stream.Position = 0;
-            using var package = new ExcelPackage(stream);
-            return package.Workbook.Worksheets.Select(ws => ws.Name).ToList();
+            try
+            {
+                stream.Position = 0;
+                using var package = new ExcelPackage(stream);
+                return package.Workbook.Worksheets
+                    .Select(ws => ws.Name)
+                    .ToList();
+            }
+            catch
+            {
+                return new List<string>();
+            }
         }
 
         public async Task<List<Dictionary<string, string>>> CarregarExcelPorAba(Stream stream, string nomeAba)
