@@ -8,8 +8,8 @@ public class CompareService : Helpers, ICompareService
     public CompareResult Compare(
         List<GenericRegistration> baseA,
         List<GenericRegistration> baseB,
-        string colunaIdA,
-        string colunaIdB,
+        List<string> idsA,
+        List<string> idsB,
         Dictionary<string, string> mapeamento)
     {
         var resultado = new CompareResult();
@@ -23,8 +23,11 @@ public class CompareService : Helpers, ICompareService
         if (baseB == null || !baseB.Any())
             erros.Add("Base B está vazia");
 
-        if (string.IsNullOrWhiteSpace(colunaIdA) || string.IsNullOrWhiteSpace(colunaIdB))
-            erros.Add("Coluna ID não informada corretamente");
+        if (idsA == null || !idsA.Any())
+            erros.Add("IDs da Base A não informados");
+
+        if (idsB == null || !idsB.Any())
+            erros.Add("IDs da Base B não informados");
 
         if (mapeamento == null || !mapeamento.Any())
             erros.Add("Mapeamento não informado");
@@ -40,8 +43,8 @@ public class CompareService : Helpers, ICompareService
 
         // 🔴 Detectar IDs duplicados na Base B
         var duplicadosB = baseB
-            .Where(x => x.Campos.ContainsKey(colunaIdB))
-            .GroupBy(x => Normalize(x.Campos[colunaIdB]))
+            .Where(x => !string.IsNullOrEmpty(GerarChave(x, idsB)))
+            .GroupBy(x => GerarChave(x, idsB))
             .Where(g => g.Count() > 1)
             .Select(g => g.Key)
             .ToList();
@@ -53,11 +56,11 @@ public class CompareService : Helpers, ICompareService
 
         // 🔹 Criar índice da Base B
         var dictB = baseB
-            .Where(x => x.Campos.ContainsKey(colunaIdB))
+            .Where(x => !string.IsNullOrEmpty(GerarChave(x, idsB)))
             .Select(x => new
             {
                 Item = x,
-                Id = Normalize(x.Campos[colunaIdB])
+                Id = GerarChave(x, idsB)
             })
             .Where(x => !string.IsNullOrEmpty(x.Id))
             .GroupBy(x => x.Id)
@@ -66,14 +69,14 @@ public class CompareService : Helpers, ICompareService
         // 🔹 Comparação
         foreach (var itemA in baseA)
         {
-            if (!itemA.Campos.ContainsKey(colunaIdA))
+            if (string.IsNullOrEmpty(GerarChave(itemA, idsA)))
             {
                 erros.Add("Registro sem ID na Base A");
                 continue;
             }
 
-            var idOriginal = itemA.Campos[colunaIdA];
-            var id = Normalize(idOriginal);
+            var id = GerarChave(itemA, idsA);
+            var idOriginal = id;
 
             if (string.IsNullOrEmpty(id))
                 continue;
@@ -112,15 +115,15 @@ public class CompareService : Helpers, ICompareService
         }
 
         // 🔹 Sets de IDs
-        var idsA = baseA
-            .Where(x => x.Campos.ContainsKey(colunaIdA))
-            .Select(x => Normalize(x.Campos[colunaIdA]))
+        var idsBaseA = baseA
+            .Where(x => !string.IsNullOrEmpty(GerarChave(x, idsA)))
+            .Select(x => GerarChave(x, idsA))
             .Where(x => !string.IsNullOrEmpty(x))
             .ToHashSet();
 
-        var idsB = baseB
-            .Where(x => x.Campos.ContainsKey(colunaIdB))
-            .Select(x => Normalize(x.Campos[colunaIdB]))
+        var idsBaseB = baseB
+            .Where(x => !string.IsNullOrEmpty(GerarChave(x, idsB)))
+            .Select(x => GerarChave(x, idsB))
             .Where(x => !string.IsNullOrEmpty(x))
             .ToHashSet();
 
@@ -128,11 +131,23 @@ public class CompareService : Helpers, ICompareService
         return new CompareResult
         {
             Diferencas = diferencas,
-            ApenasA = idsA.Except(idsB).ToList(),
-            ApenasB = idsB.Except(idsA).ToList(),
-            EmAmbas = idsA.Intersect(idsB).Count(),
-            Total = idsA.Union(idsB).Count(),
+            ApenasA = idsBaseA.Except(idsBaseB).ToList(),
+            ApenasB = idsBaseB.Except(idsBaseA).ToList(),
+            EmAmbas = idsBaseA.Intersect(idsBaseB).Count(),
+            Total = idsBaseA.Union(idsBaseB).Count(),
             Erros = erros
         };
+    }
+    private string GerarChave(
+    GenericRegistration registro,
+    List<string> colunas)
+    {
+        return string.Join("|",
+            colunas.Select(col =>
+            {
+                registro.Campos.TryGetValue(col, out var valor);
+
+                return Normalize(valor ?? "");
+            }));
     }
 }

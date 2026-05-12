@@ -154,7 +154,8 @@
 
         if (_appState.BaseA == null ||
             _appState.BaseB == null ||
-            string.IsNullOrWhiteSpace(_appState.ColunaA) ||
+            _appState.IdsA == null || !_appState.IdsA.Any() ||
+            _appState.IdsB == null || !_appState.IdsB.Any() ||
             _appState.Mapeamento == null)
         {
             resultado = new CompareResult
@@ -169,8 +170,8 @@
         resultado = await Task.Run(() => _compareService.Compare(
             _appState.BaseA,
             _appState.BaseB,
-            _appState.ColunaA,
-            _appState.ColunaB,
+            _appState.IdsA,
+            _appState.IdsB,
             _appState.Mapeamento
         ));
 

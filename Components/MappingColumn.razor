@@ -11,24 +11,77 @@
 
     <!-- 🔹 IDs -->
     <MudGrid Class="mb-4">
-        <MudItem xs="6">
-            <MudSelect T="string" Label="ID Base A" @bind-Value="ColunaA">
-                @foreach (var idColA in ColunasA)
+            <!-- 🔹 IDs Base A -->
+            <MudItem xs="12" md="6">
+                <MudPaper Class="pa-4">
+
+                    <MudText Typo="Typo.h6">
+                        IDs Base A 🔑
+                    </MudText>
+
+                    @foreach (var col in ColunasA)
+                    {
+                        <MudCheckBox T="bool"
+                                     Label="@col"
+                                     Value="@idsALocal.Contains(col)"
+                                     ValueChanged="@( (bool value) => ToggleIdA(col, value) )" />
+                    }
+                </MudPaper>
+            </MudItem>
+
+            <!-- 🔹 IDs Base B -->
+            <MudItem xs="12" md="6">
+                <MudPaper Class="pa-4">
+                    <MudText Typo="Typo.h6">
+                        IDs Base B 🔑
+                    </MudText>
+
+                    @foreach (var col in ColunasB)
+                    {
+                        <MudCheckBox T="bool"
+                                     Label="@col"
+                                     Value="@idsBLocal.Contains(col)"
+                                     ValueChanged="@( (bool value) => ToggleIdB(col, value) )" />
+                    }
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+
+      @*   <!-- 🔹 Base A -->
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-3">
+                <MudText Typo="Typo.h6">
+                    IDs Base A 🔑
+                </MudText>
+
+                @foreach (var col in ColunasA)
                 {
-                    <MudSelectItem @key="idColA" Value="@idColA">@idColA</MudSelectItem>
+                    <MudCheckBox T="bool"
+                                 Label="@col"
+                                 Value="@IdsA.Contains(col)"
+                                 ValueChanged="@( (bool value) => ToggleIdA(col, value) )" />
                 }
-            </MudSelect>
+            </MudPaper>
         </MudItem>
 
-        <MudItem xs="6">
-            <MudSelect T="string" Label="ID Base B" @bind-Value="ColunaB">
-                @foreach (var IdcolB in ColunasB)
+        <!-- 🔹 Base B -->
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-3">
+                <MudText Typo="Typo.h6">
+                    IDs Base B 🔑
+                </MudText>
+
+                @foreach (var col in ColunasB)
                 {
-                    <MudSelectItem @key="IdcolB" Value="@IdcolB">@IdcolB</MudSelectItem>
+                    <MudCheckBox T="bool"
+                                 Label="@col"
+                                 Value="@IdsB.Contains(col)"
+                                 ValueChanged="@( (bool value) => ToggleIdB(col, value) )" />
                 }
-            </MudSelect>
+
+            </MudPaper>
         </MudItem>
-    </MudGrid>
+    </MudGrid> *@
 
     <MudButton Class="mapping-top-right" Color="Color.Primary" OnClick="AutoMapear" Variant="Variant.Filled">AUTO MAPEAR 🤖</MudButton>
 
@@ -69,18 +122,25 @@
     [Parameter]
     public List<GenericRegistration> baseB { get; set; } = new List<GenericRegistration>();
     [Parameter]
-    public List<string> ColunasA { get; set; } = new List<string>();
+    public List<string> IdsA { get; set; } = new();
     [Parameter]
-    public List<string> ColunasB { get; set; } = new List<string>();
+    public List<string> IdsB { get; set; } = new();
+    private List<string> idsALocal = new();
+    private List<string> idsBLocal = new();
     [Parameter]
     public Dictionary<string, string> Mapeamento { get; set; } = new();
     [Parameter]
-    public string ColunaA { get; set; } = string.Empty;
-    [Parameter]
-    public string ColunaB { get; set; } = string.Empty;
-    [Parameter]
     public Dictionary<string, string> MapeamentoUI { get; set; } = new();
+    [Parameter]
+    public List<string> ColunasA { get; set; } = new();
+    [Parameter]
+    public List<string> ColunasB { get; set; } = new();
 
+    protected override void OnParametersSet()
+    {
+        idsALocal = IdsA.ToList();
+        idsBLocal = IdsB.ToList();
+    }
     private void ToggleMappingColumn()
     {
         showMappingColumn = !showMappingColumn;
@@ -117,10 +177,35 @@
 
     private void IrParaComparacao()
     {
-        _appState.ColunaA = ColunaA;
-        _appState.ColunaB = ColunaB;
+        _appState.IdsA = idsALocal;
+        _appState.IdsB = idsBLocal;
         _appState.Mapeamento = Mapeamento;
 
         nav.NavigateTo("/compare");
+    }
+
+    private void ToggleIdA(string coluna, bool selecionado)
+    {
+        if (selecionado)
+        {
+            if (!idsALocal.Contains(coluna))
+                idsALocal.Add(coluna);
+        }
+        else
+        {
+            idsALocal.Remove(coluna);
+        }
+    }
+    private void ToggleIdB(string coluna, bool selecionado)
+    {
+        if (selecionado)
+        {
+            if (!idsBLocal.Contains(coluna))
+                idsBLocal.Add(coluna);
+        }
+        else
+        {
+            idsBLocal.Remove(coluna);
+        }
     }
 }

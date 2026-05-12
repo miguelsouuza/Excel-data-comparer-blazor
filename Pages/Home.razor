@@ -91,7 +91,13 @@
         @if (showMappingColumn)
         {
             <MudPaper Class="pa-4 mt-4">
-                <MappingColumn BaseA="baseA" BaseB="baseB" Mapeamento="mapeamento" MapeamentoUI="mapeamentoUI" showMappingColumn="showMappingColumn" ColunasA="colunasA" ColunasB="colunasB" />
+                <MappingColumn BaseA="baseA" 
+                    BaseB="baseB" 
+                    Mapeamento="mapeamento" 
+                    MapeamentoUI="mapeamentoUI" 
+                    showMappingColumn="showMappingColumn" 
+                    IdsA="IdsA" IdsB="IdsB"
+                    ColunasA="colunasA" ColunasB="colunasB"/>
             </MudPaper>
         }
         
@@ -102,8 +108,8 @@
 </MudContainer>
 
 @code {
-    private string colunaA = "";
-    private string colunaB = "";
+    public List<string> IdsA { get; set; } = new();
+    public List<string> IdsB { get; set; } = new();
 
     private Dictionary<string, string> mapeamento = new();
     private Dictionary<string, string> mapeamentoUI = new();
@@ -126,8 +132,7 @@
     private string? originalNomeArquivoB;
 
     private bool showMappingColumn = false;
-    
-
+        
     // 🔹 Upload
     private async Task UploadA(InputFileChangeEventArgs e)
     {

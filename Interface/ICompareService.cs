@@ -2,7 +2,7 @@
 {
     CompareResult Compare(List<GenericRegistration> baseA,
     List<GenericRegistration> baseB,
-    string colunaIdA,
-    string colunaIdB,
+    List<string> idsA,
+    List<string> idsB,
     Dictionary<string, string> mapeamento);
 }
