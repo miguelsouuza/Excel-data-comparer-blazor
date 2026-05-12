@@ -3,12 +3,27 @@
 
 @inject ICompareService _compareService
 @inject AppState _appState
+@inject NavigationManager nav
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    <MudStack Row="true"
+              AlignItems="AlignItems.Center"
+              Spacing="2"
+              Class="mb-4">
 
-    <MudText Typo="Typo.h4" Class="mb-4">
-        Resultado da Comparação 📊
-    </MudText>
+        <MudButton Variant="Variant.Text"
+                   Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.ArrowBack"
+                   OnClick="Voltar">
+
+            Voltar
+        </MudButton>
+
+        <MudText Typo="Typo.h5">
+            Resultado da Comparação
+        </MudText>
+
+    </MudStack>
 
     @if (isLoading)
     {
@@ -177,5 +192,10 @@
 
         isLoading = false;
         StateHasChanged();
+    }
+
+    private void Voltar()
+    {
+        nav.NavigateTo("/");
     }
 }
