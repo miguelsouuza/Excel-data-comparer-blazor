@@ -15,4 +15,5 @@
     public string DelimitadorCsv { get; set; } = ";";
     public bool ShowMappingHeader { get; set; } = false;
     public bool ShowMappingColumn { get; set; } = false;
+    public string NomeArquivoExportacao { get; set; } = "resultado_alinhamento";
 }

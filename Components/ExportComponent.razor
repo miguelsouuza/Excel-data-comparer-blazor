@@ -17,16 +17,17 @@
 
     private void ExportCsv()
     {
-        nav.NavigateTo("/download/baseb/csv", true);
-    }
-
-    private void ExportXlsx()
-    {
-        nav.NavigateTo("/download/baseb/xlsx", true);
+        nav.NavigateTo($"/download/baseb/csv?t={DateTime.Now.Ticks}", true);
     }
 
     private void ExportJson()
     {
-        nav.NavigateTo("/download/baseb/json", true);
+        nav.NavigateTo($"/download/baseb/json?t={DateTime.Now.Ticks}", true);
     }
+
+    private void ExportXlsx()
+    {
+        nav.NavigateTo($"/download/baseb/xlsx?t={DateTime.Now.Ticks}", true);
+    }
+
 }

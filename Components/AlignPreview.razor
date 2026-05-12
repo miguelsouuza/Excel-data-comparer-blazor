@@ -141,6 +141,17 @@
         </div>
 
         <div class="mt-3">
+            <MudPaper Class="pa-3 mt-4">
+
+                <MudText Typo="Typo.subtitle2" Class="mb-2">
+                    Nome do arquivo exportado
+                </MudText>
+                <MudTextField T="string"
+                              Label="Nome do arquivo"
+                              @bind-Value="nomeArquivoExportacao"
+                              Immediate="true"
+                              Variant="Variant.Outlined" />
+            </MudPaper>
             <ExportComponent Enabled="confirmed" />
         </div>
     }
@@ -158,12 +169,27 @@
     [Parameter]
     public EventCallback OnClose { get; set; }
 
+    private string nomeArquivoExportacao = "";
     private string delimitadorCsv = ";";
     private const string TAB = "\t";
     private const string virgula = ",";
     private const string pipe = "|";
     private const string pontoVirgula = ";";
 
+    private string ultimoArquivo = "";
+
+    protected override void OnParametersSet()
+    {
+        var nomeAtual =Path.GetFileNameWithoutExtension(_appState.NomeArquivoA);
+
+        if (ultimoArquivo != nomeAtual)
+        {
+            ultimoArquivo = nomeAtual;
+
+            nomeArquivoExportacao =
+                $"{nomeAtual}";
+        }
+    }
 
     private async Task Close()
     {
@@ -180,6 +206,7 @@
         _appState.BaseB = Result.Alinhada;
         _appState.Mapeamento = Result.Mapeamento;
         _appState.DelimitadorCsv = delimitadorCsv;
+        _appState.NomeArquivoExportacao = nomeArquivoExportacao;       
 
         confirmed = true;
 

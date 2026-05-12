@@ -29,7 +29,7 @@ if (!app.Environment.IsDevelopment())
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
-app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
+//app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseHttpsRedirection();
 
 app.UseAntiforgery();
@@ -41,7 +41,7 @@ app.MapGet("/download/baseb/csv", (AppState state, FileService svc) =>
     if (bytes == null || bytes.Length == 0)
         return Results.NotFound();
 
-    var name = state.NomeArquivoA ?? state.NomeArquivoB ?? "baseb";
+    var name = state.NomeArquivoExportacao ?? state.NomeArquivoB ?? "baseb";
     var baseName = System.IO.Path.GetFileNameWithoutExtension(name);
     var fileName = baseName + ".csv";
     return Results.File(bytes, "text/csv; charset=utf-8", fileName);
@@ -129,7 +129,7 @@ app.MapGet("/download/baseb/xlsx", async (AppState state, FileService svc) =>
         if (bytes == null || bytes.Length == 0)
             return Results.NotFound();
 
-        var name = state.NomeArquivoA ?? state.NomeArquivoB ?? "baseb";
+        var name = state.NomeArquivoExportacao ?? state.NomeArquivoB ?? "baseb";
         var baseName = System.IO.Path.GetFileNameWithoutExtension(name);
         var fileName = baseName + ".xlsx";
         return Results.File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
@@ -140,7 +140,7 @@ app.MapGet("/download/baseb/xlsx", async (AppState state, FileService svc) =>
     if (single == null || single.Length == 0)
         return Results.NotFound();
 
-    var fname = state.NomeArquivoA ?? state.NomeArquivoB ?? "baseb";
+    var fname = state.NomeArquivoExportacao ?? state.NomeArquivoB ?? "baseb";
     var fn = System.IO.Path.GetFileNameWithoutExtension(fname) + ".xlsx";
     return Results.File(single, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fn);
 });
@@ -152,7 +152,7 @@ app.MapGet("/download/baseb/json", (AppState state) =>
 
     var json = System.Text.Json.JsonSerializer.Serialize(state.BaseB);
     var bytes = System.Text.Encoding.UTF8.GetBytes(json);
-    var name = state.NomeArquivoA ?? state.NomeArquivoB ?? "baseb";
+    var name = state.NomeArquivoExportacao ?? state.NomeArquivoB ?? "baseb";
     var baseName = System.IO.Path.GetFileNameWithoutExtension(name);
     var fileName = baseName + ".json";
     return Results.File(bytes, "application/json; charset=utf-8", fileName);
