@@ -134,6 +134,7 @@
 
         </MudGrid>
 
+ 
         <!-- 🔥 TABELA DIFERENÇAS -->
         @if (resultado.Diferencas?.Any() == true)
         {
@@ -160,8 +161,8 @@
 
 @code {
     private CompareResult resultado;
-    private bool isLoading = true;
-
+    private bool isLoading = true;    
+        
     protected override async Task OnInitializedAsync()
     {
         // roda de forma assíncrona para não bloquear o circuito e mostrar loading
@@ -198,4 +199,5 @@
     {
         nav.NavigateTo("/");
     }
+
 }

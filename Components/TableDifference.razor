@@ -12,50 +12,97 @@
     }
     else
     {
-        <MudTable Items="Difference"
-                  Dense="true"
-                  Hover="true"
-                  Bordered="true"
-                  Striped="true">
+        <MudStack Row="true"
+                  Justify="Justify.SpaceBetween"
+                  AlignItems="AlignItems.Center"
+                  Class="mb-4">
 
-            <!-- HEADER -->
-            <HeaderContent>
-                <MudTh>ID</MudTh>
-                <MudTh>Campo</MudTh>
-                <MudTh>Valor A</MudTh>
-                <MudTh>Valor B</MudTh>
-            </HeaderContent>
+            <MudText Typo="Typo.h6">
+                @Title
+            </MudText>
+        </MudStack>
 
-            <!-- LINHAS -->
-            <RowTemplate>
-                <MudTd DataLabel="ID">@context.Id</MudTd>
+        <MudTextField @bind-Value="searchString"
+                      Placeholder="Buscar em tudo..."
+                      Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search"
+                      Immediate="true"
+                      Clearable="true"
+                      Style="max-width:300px;" />
 
-                <MudTd DataLabel="Campo">
-                    <MudChip T="string" Color="Color.Primary" Variant="Variant.Outlined">
-                        @context.Campo
-                    </MudChip>
-                </MudTd>
+        <MudDataGrid T="Difference"
+                     Items="Difference"
+                     Filterable="true"
+                     SortMode="SortMode.Multiple"
+                     Groupable="true"
+                     Dense="true"
+                     Hover="true"
+                     Bordered="true"
+                     Striped="true"
+                     Virtualize="true"
+                     QuickFilter="@FiltroGlobal"
+                     FilterMode="DataGridFilterMode.ColumnFilterMenu"
+                     FilterCaseSensitivity="DataGridFilterCaseSensitivity.CaseInsensitive">
 
-                <!-- 🔴 Valor A -->
-                <MudTd DataLabel="Valor A">
-                    <MudTooltip Text="@context.ValorA">
-                        <span class="text-truncate">
-                            @context.ValorA
-                        </span>
-                    </MudTooltip>
-                </MudTd>
+            <Columns>
 
-                <!-- 🔴 Valor B -->
-                <MudTd DataLabel="Valor B">
-                    <MudTooltip Text="@context.ValorB">
-                        <span class="text-truncate text-danger fw-bold">
-                            @context.ValorB
-                        </span>
-                    </MudTooltip>
-                </MudTd>
-            </RowTemplate>
+                <!-- 🔹 ID -->
+                <PropertyColumn Property="x => x.Id"
+                                Title="ID"
+                                Filterable="true">
+                    <CellTemplate>
+                        @context.Item.Id
+                    </CellTemplate>
+                </PropertyColumn>
 
-        </MudTable>
+                <!-- 🔹 Campo -->
+                <PropertyColumn Property="x => x.Campo"
+                                Title="Campo"
+                                Filterable="true">
+                    <CellTemplate>
+                        <MudChip T="string"
+                                 Color="Color.Primary"
+                                 Variant="Variant.Outlined">
+
+                            @context.Item.Campo
+
+                        </MudChip>
+                    </CellTemplate>
+                </PropertyColumn>
+
+                <!-- 🔹 Valor A -->
+                <PropertyColumn Property="x => x.ValorA"
+                                Title="Valor A"
+                                Filterable="true">
+                    <CellTemplate>
+                        <MudTooltip Text="@context.Item.ValorA">
+                            <span class="text-truncate">
+                                @context.Item.ValorA
+                            </span>
+                        </MudTooltip>
+                    </CellTemplate>
+                </PropertyColumn>
+
+                <!-- 🔹 Valor B -->
+                <PropertyColumn Property="x => x.ValorB"
+                                Title="Valor B"
+                                Filterable="true">
+                    <CellTemplate>
+                        <MudTooltip Text="@context.Item.ValorB">
+                            <span class="text-truncate text-danger fw-bold">
+                                @context.Item.ValorB
+                            </span>
+                        </MudTooltip>
+                    </CellTemplate>
+                </PropertyColumn>
+
+            </Columns>
+
+            <PagerContent>
+                <MudDataGridPager T="Difference" />
+            </PagerContent>
+
+        </MudDataGrid>
     }
 
 </MudPaper>
@@ -66,4 +113,21 @@
 
     [Parameter]
     public string Title { get; set; } = "Diferenças";
+
+    private string searchString = "";
+
+    private Func<Difference, bool> FiltroGlobal => item =>
+    {
+        if (string.IsNullOrWhiteSpace(searchString))
+            return true;
+
+        return
+            (item.Id?.Contains(searchString, StringComparison.OrdinalIgnoreCase) ?? false)
+            ||
+            (item.Campo?.Contains(searchString, StringComparison.OrdinalIgnoreCase) ?? false)
+            ||
+            (item.ValorA?.Contains(searchString, StringComparison.OrdinalIgnoreCase) ?? false)
+            ||
+            (item.ValorB?.Contains(searchString, StringComparison.OrdinalIgnoreCase) ?? false);
+    };
 }
