@@ -68,13 +68,56 @@ app.MapGet("/download/baseb/xlsx", async (AppState state, FileService svc) =>
                 await state.StreamA.CopyToAsync(msA);
                 msA.Position = 0;
                 using var pkgA = new ExcelPackage(msA);
-                desiredNames = pkgA.Workbook.Worksheets.Select(ws => ws.Name).ToList();
-                desiredHeaders = pkgA.Workbook.Worksheets.Select(ws =>
-                    Enumerable.Range(ws.Dimension.Start.Column, ws.Dimension.End.Column - ws.Dimension.Start.Column + 1)
-                        .Select(c => ws.Cells[ws.Dimension.Start.Row, c].Text)
-                        .Select(h => h ?? string.Empty)
-                        .ToList()
-                ).ToList();
+                var validSheets = pkgA.Workbook.Worksheets
+    .Where(ws =>
+        ws != null &&
+        (
+            ws.Dimension != null ||
+            (ws.Tables != null && ws.Tables.Count > 0)
+        )
+    )
+    .ToList();
+
+                desiredNames = validSheets
+                    .Select(ws => ws.Name)
+                    .ToList();
+
+                desiredHeaders = validSheets
+                    .Select(ws =>
+                    {
+                        int startCol;
+                        int endCol;
+                        int headerRow;
+
+                        // 🔹 Aba normal
+                        if (ws.Dimension != null)
+                        {
+                            startCol = ws.Dimension.Start.Column;
+                            endCol = ws.Dimension.End.Column;
+                            headerRow = ws.Dimension.Start.Row;
+                        }
+
+                        // 🔹 Aba baseada em tabela
+                        else if (ws.Tables != null && ws.Tables.Count > 0)
+                        {
+                            var addr = ws.Tables[0].Address;
+
+                            startCol = addr.Start.Column;
+                            endCol = addr.End.Column;
+                            headerRow = addr.Start.Row;
+                        }
+
+                        // 🔹 fallback
+                        else
+                        {
+                            return new List<string>();
+                        }
+
+                        return Enumerable.Range(startCol, endCol - startCol + 1)
+                            .Select(c => ws.Cells[headerRow, c].Text ?? string.Empty)
+                            .ToList();
+                    })
+                    .ToList();
             }
             catch
             {

@@ -150,6 +150,7 @@ namespace DataComparer.Services
                 return Array.Empty<byte>();
 
             using var package = new ExcelPackage();
+
             var ws = package.Workbook.Worksheets.Add("Sheet1");
 
             var headers = baseDados.First().Campos.Keys.ToList();
@@ -293,13 +294,23 @@ namespace DataComparer.Services
 
         private string MakeUniqueSheetName(ExcelPackage pkg, string baseName)
         {
+            var invalidChars = new[] { ':', '\\', '/', '?', '*', '[', ']' };
+
             var candidate = baseName;
-            int s = 1;
-            while (pkg.Workbook.Worksheets.Any(w => w.Name.Equals(candidate, StringComparison.OrdinalIgnoreCase)))
+
+            foreach (var ch in invalidChars)
             {
-                candidate = baseName + "_" + s;
-                s++;
+                candidate = candidate.Replace(ch.ToString(), "");
             }
+
+            candidate = candidate.Trim();
+
+            if (candidate.Length > 31)
+                candidate = candidate.Substring(0, 31);
+
+            if (string.IsNullOrWhiteSpace(candidate))
+                candidate = "Sheet";
+
             return candidate;
         }
 
@@ -322,20 +333,7 @@ namespace DataComparer.Services
                     wsOut.Cells[r + 2, c + 1].Value = val ?? string.Empty;
                 }
             }
-
-            var totalRows = Math.Max(1, rows.Count + 1);
-            if (outHeaders.Count > 0)
-            {
-                try
-                {
-                    var tableRange = wsOut.Cells[1, 1, totalRows, outHeaders.Count];
-                    wsOut.Tables.Add(tableRange, MakeSafeTableName(wsOut.Name));
-                }
-                catch
-                {
-                    // ignore table creation errors
-                }
-            }
+            wsOut.Cells.AutoFitColumns();
         }
 
         private List<Dictionary<string, string>> ReadRowsFromWorksheet(ExcelWorksheet ws)
@@ -397,14 +395,24 @@ namespace DataComparer.Services
         public async Task<List<Dictionary<string, string>>> CarregarExcelPorAba(Stream stream, string nomeAba)
         {
             stream.Position = 0;
+
             using var package = new ExcelPackage(stream);
-            var ws = package.Workbook.Worksheets[nomeAba];
-            if (ws?.Dimension == null)
-                return new List<Dictionary<string, string>>();
+
+            var ws = package.Workbook.Worksheets
+                .FirstOrDefault(x =>
+                    x.Name.Trim().Equals(nomeAba.Trim(), StringComparison.OrdinalIgnoreCase));
+
+            if (ws == null)
+                throw new Exception($"A aba '{nomeAba}' não foi encontrada.");
+
+            if (ws.Dimension == null)
+                throw new Exception($"A aba '{nomeAba}' está vazia.");
 
             int colunas = ws.Dimension.Columns;
             int linhas = ws.Dimension.Rows;
+
             var headers = new List<string>();
+
             for (int col = 1; col <= colunas; col++)
             {
                 var original = ws.Cells[1, col].Text;
@@ -412,17 +420,24 @@ namespace DataComparer.Services
             }
 
             var lista = new List<Dictionary<string, string>>();
+
             for (int lin = 2; lin <= linhas; lin++)
             {
                 var dict = new Dictionary<string, string>();
                 bool linhaVazia = true;
+
                 for (int col = 1; col <= colunas; col++)
                 {
                     var valor = ws.Cells[lin, col].Text?.Trim() ?? string.Empty;
-                    if (!string.IsNullOrWhiteSpace(valor)) linhaVazia = false;
+
+                    if (!string.IsNullOrWhiteSpace(valor))
+                        linhaVazia = false;
+
                     dict[headers[col - 1]] = valor;
                 }
-                if (!linhaVazia) lista.Add(dict);
+
+                if (!linhaVazia)
+                    lista.Add(dict);
             }
 
             return lista;

@@ -20,6 +20,25 @@
                 .Trim()
                 .ToUpper() ?? "";
         }
+        private string SanitizeWorksheetName(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                return "Sheet";
+
+            var invalidChars = new[] { ':', '\\', '/', '?', '*', '[', ']' };
+
+            foreach (var c in invalidChars)
+            {
+                name = name.Replace(c.ToString(), "");
+            }
+
+            name = name.Trim();
+
+            if (name.Length > 31)
+                name = name.Substring(0, 31);
+
+            return name;
+        }
     }
 
 }
