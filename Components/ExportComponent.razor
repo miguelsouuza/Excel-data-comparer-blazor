@@ -1,9 +1,8 @@
 @using Microsoft.AspNetCore.Components
 @inject NavigationManager nav
+@inject AppState _appState
 
-<div class="mt-2">
-    <MudText Typo="Typo.subtitle2">Exportar resultados</MudText>
-
+<div class="mt-2">   
     <MudStack Row="true" Spacing="1" Class="mt-2">
         <MudButton Color="Color.Info" Disabled="!Enabled" OnClick="ExportCsv">Baixar CSV</MudButton>
         <MudButton Color="Color.Info" Disabled="!Enabled" OnClick="ExportXlsx">Baixar XLSX</MudButton>
@@ -17,17 +16,24 @@
 
     private void ExportCsv()
     {
-        nav.NavigateTo($"/download/baseb/csv?t={DateTime.Now.Ticks}", true);
+        
+        var nome = Uri.EscapeDataString(_appState.NomeArquivoExportacao ?? "");
+
+        nav.NavigateTo($"/download/baseb/csv?name={nome}&t={DateTime.Now.Ticks}", true);
     }
 
     private void ExportJson()
     {
-        nav.NavigateTo($"/download/baseb/json?t={DateTime.Now.Ticks}", true);
+        var nome = Uri.EscapeDataString(_appState.NomeArquivoExportacao ?? "");
+
+        nav.NavigateTo($"/download/baseb/json?name={nome}&t={DateTime.Now.Ticks}", true);
     }
 
     private void ExportXlsx()
     {
-        nav.NavigateTo($"/download/baseb/xlsx?t={DateTime.Now.Ticks}", true);
+        var nome = Uri.EscapeDataString(_appState.NomeArquivoExportacao ?? "");
+
+        nav.NavigateTo($"/download/baseb/xlsx?name={nome}&t={DateTime.Now.Ticks}", true);
     }
 
 }

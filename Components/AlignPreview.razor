@@ -114,6 +114,7 @@
             </MudText>
 
             <MudSelect T="string"
+                       Disabled="enabledText"
                        Label="Selecione o delimitador"
                        @bind-Value="delimitadorCsv">
 
@@ -136,17 +137,13 @@
         </MudPaper>
 
         <div class="mt-3">
-
-            <MudButton Color="Color.Success" OnClick="Confirm">Confirmar e usar este resultado</MudButton>
-        </div>
-
-        <div class="mt-3">
             <MudPaper Class="pa-3 mt-4">
 
                 <MudText Typo="Typo.subtitle2" Class="mb-2">
                     Nome do arquivo exportado
                 </MudText>
                 <MudTextField T="string"
+                              Disabled="enabledText"
                               Label="Nome do arquivo"
                               @bind-Value="nomeArquivoExportacao"
                               Immediate="true"
@@ -154,10 +151,17 @@
             </MudPaper>
             <ExportComponent Enabled="confirmed" />
         </div>
+
+        <div class="mt-3">
+
+            <MudButton Color="Color.Success" OnClick="Confirm">Confirmar e usar este resultado</MudButton>
+        </div>
+
+   
     }
 </MudPaper>
 
-@code {
+    @code {
     [Parameter]
     public AlignmentResult Result { get; set; }
 
@@ -165,6 +169,7 @@
     public EventCallback OnConfirmed { get; set; }
 
     private bool confirmed = false;
+    private bool enabledText = false;
 
     [Parameter]
     public EventCallback OnClose { get; set; }
@@ -206,9 +211,10 @@
         _appState.BaseB = Result.Alinhada;
         _appState.Mapeamento = Result.Mapeamento;
         _appState.DelimitadorCsv = delimitadorCsv;
-        _appState.NomeArquivoExportacao = nomeArquivoExportacao;       
+        _appState.NomeArquivoExportacao = nomeArquivoExportacao; 
 
         confirmed = true;
+        enabledText = true;
 
         if (OnConfirmed.HasDelegate)
             await OnConfirmed.InvokeAsync();

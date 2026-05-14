@@ -186,7 +186,7 @@
                 .OpenReadStream(50 * 1024 * 1024)
                 .CopyToAsync(memory);
             memory.Position = 0;
-            streamA = memory;
+            _appState.StreamA = memory;
             var extensao = Path.GetExtension(file.Name).ToLower();
 
             if (extensao == ".xlsx")
@@ -222,7 +222,7 @@
                 .CopyToAsync(memory);
 
             memory.Position = 0;
-            streamB = memory;
+            _appState.StreamB = new MemoryStream(memory.ToArray());
             var extensao = Path.GetExtension(file.Name).ToLower();
             if (extensao == ".xlsx")
             {
@@ -245,11 +245,11 @@
     // 🔥 Carregar abas
     private async Task CarregarAbas()
     {
-        if (streamA == null || streamB == null)
+        if (_appState.StreamA == null || _appState.StreamB == null)
             return;
 
-        streamA.Position = 0;
-        streamB.Position = 0;
+        _appState.StreamA.Position = 0;
+        _appState.StreamB.Position = 0;
 
         var extA = Path.GetExtension(_appState.NomeArquivoA).ToLower();
         var extB = Path.GetExtension(_appState.NomeArquivoB).ToLower();
@@ -261,12 +261,12 @@
         if (extA == ".xlsx")
         {
             dadosA = await _fileService.CarregarExcelPorAba(
-                streamA,
+                _appState.StreamA,
                 abaSelecionadaA);
         }
         else
         {
-            dadosA = (await _fileService.CarregarTxt(streamA))
+            dadosA = (await _fileService.CarregarTxt(_appState.StreamA))
                 .Select(x => x.Campos)
                 .ToList();
         }
@@ -275,12 +275,12 @@
         if (extB == ".xlsx")
         {
             dadosB = await _fileService.CarregarExcelPorAba(
-                streamB,
+                _appState.StreamB,
                 abaSelecionadaB);
         }
         else
         {
-            dadosB = (await _fileService.CarregarTxt(streamB))
+            dadosB = (await _fileService.CarregarTxt(_appState.StreamB))
                 .Select(x => x.Campos)
                 .ToList();
         }
