@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-public class CompareService : Helpers, ICompareService
+public class CompareService : ICompareService
 {
     public CompareResult Compare(
         List<GenericRegistration> baseA,
@@ -98,8 +98,8 @@ public class CompareService : Helpers, ICompareService
                 valorAOriginal ??= "";
                 valorBOriginal ??= "";
 
-                var valorANormalizado = Normalize(valorAOriginal);
-                var valorBNormalizado = Normalize(valorBOriginal);
+                var valorANormalizado = Helpers.Normalize(valorAOriginal);
+                var valorBNormalizado = Helpers.Normalize(valorBOriginal);
 
                 if (!valorANormalizado.Equals(valorBNormalizado, StringComparison.OrdinalIgnoreCase))
                 {
@@ -147,7 +147,7 @@ public class CompareService : Helpers, ICompareService
             {
                 registro.Campos.TryGetValue(col, out var valor);
 
-                return Normalize(valor ?? "");
+                return Helpers.Normalize(valor ?? "");
             }));
     }
 }

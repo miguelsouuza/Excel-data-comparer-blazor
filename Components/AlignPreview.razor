@@ -1,3 +1,4 @@
+@using DataComparer.Models
 @using Microsoft.AspNetCore.Components
 @using System.Linq
 @inject AppState _appState
@@ -168,6 +169,21 @@
     [Parameter]
     public EventCallback OnConfirmed { get; set; }
 
+    [Parameter]     
+    public string abaSelecionadaA { get; set; }
+
+    [Parameter] 
+    public string abaSelecionadaB { get; set; }
+
+    [Parameter] 
+    public List<string> headersAAtual { get; set; }
+
+    [Parameter] 
+    public List<string> headersBAtual { get; set; }
+
+    [Parameter] 
+    public Dictionary<string, string> mappingAtual { get; set; }
+
     private bool confirmed = false;
     private bool enabledText = false;
 
@@ -207,16 +223,36 @@
 
     private async Task Confirm()
     {
-        // atualiza AppState para usar Alinhada
-        _appState.BaseB = Result.Alinhada;
-        _appState.Mapeamento = Result.Mapeamento;
-        _appState.DelimitadorCsv = delimitadorCsv;
-        _appState.NomeArquivoExportacao = nomeArquivoExportacao; 
+        // Normalizar nome da aba B para chave
+        string keyB = Helpers.Normalize(abaSelecionadaB);
+        // Remover mapeamentos antigos desta aba
+        _appState.MapeamentosPorAba.RemoveAll(x =>
+            Helpers.Normalize(x.NomeAbaB) == keyB);
+        // Adicionar novo SheetMapping na lista
+        _appState.MapeamentosPorAba.Add(new SheetMapping
+        {
+            NomeAbaA = abaSelecionadaA,
+            NomeAbaB = abaSelecionadaB,
+            HeadersA = headersAAtual,
+            HeadersB = headersBAtual,
+            Mapping = Result.Mapeamento
+        });
+        // Salvar dados alinhados de BaseB nesta aba no AppState
+        _appState.BaseBPorAba[keyB] = new SheetMapping
+        {
+            Registros = Result.Alinhada,
+            Mapping = Result.Mapeamento,
+            HeadersA = headersAAtual,
+            HeadersB = headersBAtual
+        };
 
+        // Outros campos de estado
+        _appState.DelimitadorCsv = delimitadorCsv;
+        _appState.NomeArquivoExportacao = nomeArquivoExportacao;
         confirmed = true;
         enabledText = true;
-
         if (OnConfirmed.HasDelegate)
             await OnConfirmed.InvokeAsync();
     }
+
 }

@@ -1,15 +1,16 @@
 ﻿
-using System;
+using DataComparer.Models;
 using OfficeOpenXml;
-using System.Text;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace DataComparer.Services
 {
-    public class FileService : Helpers, IFileService
+    public class FileService : IFileService
     {
         private string MapearColuna(string coluna)
         {
@@ -55,7 +56,7 @@ namespace DataComparer.Services
             for (int c = startCol; c <= endCol; c++)
             {
                 var original = ws.Cells[headerRow, c].Text;
-                result.Add(Normalize(original));
+                result.Add(Helpers.Normalize(original));
             }
 
             return result;
@@ -66,45 +67,13 @@ namespace DataComparer.Services
             if ((a == null || a.Count == 0) && (b == null || b.Count == 0)) return 1.0;
             if (a == null || a.Count == 0 || b == null || b.Count == 0) return 0.0;
 
-            var sa = new HashSet<string>(a.Select(x => NormalizeForCompare(x)));
-            var sb = new HashSet<string>(b.Select(x => NormalizeForCompare(x)));
+            var sa = new HashSet<string>(a.Select(x => Helpers.NormalizeForCompare(x)));
+            var sb = new HashSet<string>(b.Select(x => Helpers.NormalizeForCompare(x)));
 
             var inter = sa.Intersect(sb).Count();
             var uni = sa.Union(sb).Count();
             if (uni == 0) return 0.0;
             return (double)inter / uni;
-        }
-
-        private string NormalizeForCompare(string s)
-        {
-            if (string.IsNullOrWhiteSpace(s)) return string.Empty;
-            var t = s.ToUpperInvariant().Trim();
-            var sb = new StringBuilder();
-            foreach (var ch in t)
-            {
-                if (char.IsLetterOrDigit(ch)) sb.Append(ch);
-                else sb.Append(' ');
-            }
-            return sb.ToString().Replace(" ", "").Trim();
-        }
-
-        private string MakeSafeTableName(string name)
-        {
-            if (string.IsNullOrWhiteSpace(name))
-                return "Table1";
-
-            var sb = new System.Text.StringBuilder();
-            foreach (var ch in name)
-            {
-                if (char.IsLetterOrDigit(ch) || ch == '_') sb.Append(ch);
-                else if (char.IsWhiteSpace(ch)) sb.Append('_');
-            }
-
-            var candidate = sb.ToString();
-            if (string.IsNullOrWhiteSpace(candidate)) candidate = "Table1";
-            if (char.IsDigit(candidate[0])) candidate = "T_" + candidate;
-            if (candidate.Length > 50) candidate = candidate.Substring(0, 50);
-            return candidate;
         }
 
         public byte[] GerarCsvBytes(List<GenericRegistration> baseDados, string delimitador = ";")
@@ -117,12 +86,12 @@ namespace DataComparer.Services
 
             var headers = baseDados.First().Campos.Keys.ToList();
             var sb = new System.Text.StringBuilder();
-            sb.AppendLine(string.Join(separador, headers.Select(h => EscapeCsv(h, separador))));
+            sb.AppendLine(string.Join(separador, headers.Select(h => Helpers.EscapeCsv(h, separador))));
 
             foreach (var row in baseDados)
             {
                 var vals = headers.Select(h => row.Campos.TryGetValue(h, out var v) ? v : string.Empty);
-                sb.AppendLine(string.Join(separador, vals.Select(v => EscapeCsv(v,separador))));
+                sb.AppendLine(string.Join(separador, vals.Select(v => Helpers.EscapeCsv(v, separador))));
             }
 
             var contentBytes = System.Text.Encoding.UTF8.GetBytes(sb.ToString());
@@ -138,24 +107,7 @@ namespace DataComparer.Services
             return contentBytes;
         }
 
-        private string EscapeCsv(string s, char separador)
-        {
-            if (s == null)
-                return string.Empty;
 
-            if (s.Contains('"'))
-                s = s.Replace("\"", "\"\"");
-
-            if (s.Contains(separador)
-                || s.Contains('\n')
-                || s.Contains('\r')
-                || s.Contains('"'))
-            {
-                return $"\"{s}\"";
-            }
-
-            return s;
-        }
 
         public byte[] GerarExcelBytes(List<GenericRegistration> baseDados)
         {
@@ -183,7 +135,10 @@ namespace DataComparer.Services
             return package.GetAsByteArray();
         }
 
-        public async Task<byte[]> GerarExcelBytesMultiSheetAsync(byte[] originalWorkbookBytes, List<string> headersA, Dictionary<string, string> mapping, List<string>? desiredSheetNames = null, List<List<string>>? desiredSheetHeaders = null)
+        public async Task<byte[]> GerarExcelBytesMultiSheetAsync(byte[] originalWorkbookBytes,
+        List<SheetMapping> mappingsPorAba,
+        List<string>? desiredSheetNames = null,
+        List<List<string>>? desiredSheetHeaders = null)
         {
             if (originalWorkbookBytes == null || originalWorkbookBytes.Length == 0)
                 return Array.Empty<byte>();
@@ -192,48 +147,39 @@ namespace DataComparer.Services
             using var inPackage = new ExcelPackage(inStream);
             using var outPackage = new ExcelPackage();
 
-            // consider worksheets that are actual Excel tables OR regular worksheets with data (but skip pivot-only sheets)
             var tableSheets = inPackage.Workbook.Worksheets
                 .Where(w => (w.Tables != null && w.Tables.Count > 0)
                             || (w.Dimension != null && (w.PivotTables == null || w.PivotTables.Count == 0)))
                 .ToList();
 
-            // preparar mapa por nome normalizado para tentar casar abas por nome primeiro
-            Dictionary<string, Queue<ExcelWorksheet>> tableMapByName = new();
-            foreach (var t in tableSheets)
-            {
-                var key = NormalizeForCompare(t.Name);
-                if (!tableMapByName.TryGetValue(key, out var q))
-                {
-                    q = new Queue<ExcelWorksheet>();
-                    tableMapByName[key] = q;
-                }
-                q.Enqueue(t);
-            }
             var usedTables = new HashSet<ExcelWorksheet>();
 
-            // If desired names provided, produce a sheet per desired name
+            // LOOP PRINCIPAL POR ABA
             if (desiredSheetNames != null && desiredSheetNames.Any())
             {
                 for (int i = 0; i < desiredSheetNames.Count; i++)
                 {
-                    var targetName = string.IsNullOrWhiteSpace(desiredSheetNames[i]) ? $"Sheet{i + 1}" : desiredSheetNames[i];
-                    var candidateName = MakeUniqueSheetName(outPackage, targetName);
-                    var wsOut = outPackage.Workbook.Worksheets.Add(candidateName);
+                    var targetName = string.IsNullOrWhiteSpace(desiredSheetNames[i])
+                        ? $"Sheet{i + 1}"
+                        : desiredSheetNames[i];
 
-                    List<Dictionary<string, string>> rows = new();
+                    var wsOut = outPackage.Workbook.Worksheets.Add(Helpers.MakeUniqueSheetName(outPackage, targetName));
+
                     ExcelWorksheet src = null;
 
-                    // tentar casar por similaridade de headers (se fornecido)
+                    // Match por headers (similaridade)
                     if (desiredSheetHeaders != null && desiredSheetHeaders.Count > i)
                     {
                         var desiredHeaders = desiredSheetHeaders[i] ?? new List<string>();
+
                         double bestScore = 0;
                         ExcelWorksheet best = null;
+
                         foreach (var candidate in tableSheets.Where(t => !usedTables.Contains(t)))
                         {
                             var candidateHeaders = ReadHeadersFromWorksheet(candidate);
                             var score = ComputeJaccard(desiredHeaders, candidateHeaders);
+
                             if (score > bestScore)
                             {
                                 bestScore = score;
@@ -241,7 +187,6 @@ namespace DataComparer.Services
                             }
                         }
 
-                        // escolher melhor se pontuação aceitável
                         if (best != null && bestScore >= 0.15)
                         {
                             src = best;
@@ -249,34 +194,39 @@ namespace DataComparer.Services
                         }
                     }
 
-                    // se não encontrou por similaridade, tentar por nome normalizado
-                    if (src == null)
-                    {
-                        var desired = desiredSheetNames != null && desiredSheetNames.Count > i ? desiredSheetNames[i] : string.Empty;
-                        var norm = NormalizeForCompare(desired ?? string.Empty);
-                        if (tableMapByName.TryGetValue(norm, out var queue) && queue.Count > 0)
-                        {
-                            src = queue.Dequeue();
-                            usedTables.Add(src);
-                        }
-                    }
-
-                    // fallback: usar a próxima tabela disponível por índice
+                    //  fallback
                     if (src == null)
                     {
                         src = tableSheets.FirstOrDefault(t => !usedTables.Contains(t));
                         if (src != null) usedTables.Add(src);
                     }
 
+                    List<Dictionary<string, string>> rows = new();
+
                     if (src != null)
                     {
                         rows = ReadRowsFromWorksheet(src);
+
                         if (rows == null || rows.Count == 0)
                             rows = await CarregarExcelPorAba(new MemoryStream(originalWorkbookBytes), src.Name);
                     }
 
-                    var outHeaders = (headersA != null && headersA.Any()) ? headersA.ToList() : rows.FirstOrDefault()?.Keys.ToList() ?? new List<string>();
-                    WriteSheetData(wsOut, outHeaders, rows, mapping);
+                    // 🔹 buscar mapping da aba atual
+                    var mappingPorAba = mappingsPorAba?
+                        .FirstOrDefault(m =>
+                        Helpers.NormalizeForCompare(m.NomeAbaB) ==
+                        Helpers.NormalizeForCompare(src?.Name ?? "")
+                        );
+
+                    // headers da aba
+                    var outHeaders = mappingPorAba?.HeadersA != null && mappingPorAba.HeadersA.Any()
+                    ? mappingPorAba.HeadersA
+                    : rows.FirstOrDefault()?.Keys.ToList() ?? new List<string>();
+
+                    // mapping da aba
+                    var mappingFinal = mappingPorAba?.Mapping;
+
+                    WriteSheetData(wsOut, outHeaders, rows, mappingFinal);
                 }
 
                 if (outPackage.Workbook.Worksheets.Count == 0)
@@ -285,46 +235,39 @@ namespace DataComparer.Services
                 return outPackage.GetAsByteArray();
             }
 
-            // Fallback: include all table sheets from B
-            // include remaining tables (if any) using their original names
-            foreach (var src in tableSheets.Where(t => !usedTables.Contains(t)))
+            //  fallback geral (sem desired)
+            foreach (var fsrc in tableSheets.Where(t => !usedTables.Contains(t)))
             {
-                var candidateName = MakeUniqueSheetName(outPackage, src.Name);
-                var wsOut = outPackage.Workbook.Worksheets.Add(candidateName);
-                var rows = ReadRowsFromWorksheet(src);
-                if (rows == null || rows.Count == 0)
-                    rows = await CarregarExcelPorAba(new MemoryStream(originalWorkbookBytes), src.Name);
+                var fwsOut = outPackage.Workbook.Worksheets.Add(Helpers.MakeUniqueSheetName(outPackage, fsrc.Name));
 
-                var outHeaders = (headersA != null && headersA.Any()) ? headersA.ToList() : rows.FirstOrDefault()?.Keys.ToList() ?? new List<string>();
-                WriteSheetData(wsOut, outHeaders, rows, mapping);
+                var frows = ReadRowsFromWorksheet(fsrc);
+                if (frows == null || frows.Count == 0)
+                    frows = await CarregarExcelPorAba(new MemoryStream(originalWorkbookBytes), fsrc.Name);
+
+                var outHeaders = frows.FirstOrDefault()?.Keys.ToList() ?? new List<string>();
+
+                // 🔹 buscar mapping da aba atual
+                var mappingPorAba = mappingsPorAba?
+                    .FirstOrDefault(m =>
+                    Helpers.NormalizeForCompare(m.NomeAbaB) ==
+                    Helpers.NormalizeForCompare(fsrc?.Name ?? "")
+                    );
+
+                // headers da aba
+                var foutHeaders = mappingPorAba?.HeadersA != null && mappingPorAba.HeadersA.Any()
+                ? mappingPorAba.HeadersA
+                : frows.FirstOrDefault()?.Keys.ToList() ?? new List<string>();
+
+                // mapping da aba
+                var fmappingFinal = mappingPorAba?.Mapping;
+
+                WriteSheetData(fwsOut, foutHeaders, frows, fmappingFinal);
             }
 
             if (outPackage.Workbook.Worksheets.Count == 0)
                 return originalWorkbookBytes;
 
             return outPackage.GetAsByteArray();
-        }
-
-        private string MakeUniqueSheetName(ExcelPackage pkg, string baseName)
-        {
-            var invalidChars = new[] { ':', '\\', '/', '?', '*', '[', ']' };
-
-            var candidate = baseName;
-
-            foreach (var ch in invalidChars)
-            {
-                candidate = candidate.Replace(ch.ToString(), "");
-            }
-
-            candidate = candidate.Trim();
-
-            if (candidate.Length > 31)
-                candidate = candidate.Substring(0, 31);
-
-            if (string.IsNullOrWhiteSpace(candidate))
-                candidate = "Sheet";
-
-            return candidate;
         }
 
         private void WriteSheetData(ExcelWorksheet wsOut, List<string> outHeaders, List<Dictionary<string, string>> rows, Dictionary<string, string> mapping)
@@ -379,7 +322,7 @@ namespace DataComparer.Services
             for (int c = startCol; c <= endCol; c++)
             {
                 var original = ws.Cells[startRow, c].Text;
-                headers.Add(MapearColuna(Normalize(original)));
+                headers.Add(MapearColuna(Helpers.Normalize(original)));
             }
 
             for (int r = startRow + 1; r <= endRow; r++)
@@ -438,7 +381,7 @@ namespace DataComparer.Services
             for (int col = 1; col <= colunas; col++)
             {
                 var original = ws.Cells[1, col].Text;
-                headers.Add(MapearColuna(Normalize(original)));
+                headers.Add(MapearColuna(Helpers.Normalize(original)));
             }
 
             var lista = new List<Dictionary<string, string>>();
@@ -475,8 +418,8 @@ namespace DataComparer.Services
                 linhas.Add(linha);
 
             if (!linhas.Any()) return lista;
-            var separador = DetectSeparator(linhas[0]);
-            var headers = linhas[0].Split(separador).Select(h => MapearColuna(Normalize(h))).ToArray();
+            var separador = Helpers.DetectSeparator(linhas[0]);
+            var headers = linhas[0].Split(separador).Select(h => MapearColuna(Helpers.Normalize(h))).ToArray();
 
             foreach (var linhaRow in linhas.Skip(1))
             {
@@ -502,5 +445,5 @@ namespace DataComparer.Services
             };
         }
     }
-    
+
 }
