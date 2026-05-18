@@ -6,10 +6,9 @@ internal interface IFileService
     List<string> ObterAbas(Stream stream);
     Task<List<Dictionary<string, string>>> CarregarExcelPorAba(Stream stream, string nomeAba);
     Task<List<GenericRegistration>> CarregarTxt(Stream stream);
-    Task<byte[]> GerarExcelBytesMultiSheetAsync(byte[] originalWorkbookBytes,
-        List<SheetMapping> mappingsPorAba,
-        List<string>? desiredSheetNames = null,
-        List<List<string>>? desiredSheetHeaders = null);
+    Task<byte[]> GerarExcelBytesMultiSheetAsync(
+         byte[] originalWorkbookBytes,
+         Dictionary<string, SheetMapping> sheets);
 
     byte[] GerarCsvBytes(List<GenericRegistration> baseDados, string delimitador = ";");
 

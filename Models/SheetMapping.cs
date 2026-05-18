@@ -8,6 +8,6 @@
         public List<string> HeadersA { get; set; }
         public List<string> HeadersB { get; set; }
 
-        public Dictionary<string, string> Mapping { get; set; }
+        public Dictionary<string, string> Mapping { get; set; } = new Dictionary<string, string>();
     }
 }

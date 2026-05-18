@@ -1,16 +1,17 @@
 ﻿
-using DataComparer.Models;
-using OfficeOpenXml;
 using System;
+using OfficeOpenXml;
+using System.Text;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
+using DataComparer.Models;
+
 
 namespace DataComparer.Services
 {
-    public class FileService : IFileService
+    public class FileService : Helpers, IFileService
     {
         private string MapearColuna(string coluna)
         {
@@ -56,7 +57,7 @@ namespace DataComparer.Services
             for (int c = startCol; c <= endCol; c++)
             {
                 var original = ws.Cells[headerRow, c].Text;
-                result.Add(Helpers.Normalize(original));
+                result.Add(Normalize(original));
             }
 
             return result;
@@ -67,13 +68,45 @@ namespace DataComparer.Services
             if ((a == null || a.Count == 0) && (b == null || b.Count == 0)) return 1.0;
             if (a == null || a.Count == 0 || b == null || b.Count == 0) return 0.0;
 
-            var sa = new HashSet<string>(a.Select(x => Helpers.NormalizeForCompare(x)));
-            var sb = new HashSet<string>(b.Select(x => Helpers.NormalizeForCompare(x)));
+            var sa = new HashSet<string>(a.Select(x => NormalizeForCompare(x)));
+            var sb = new HashSet<string>(b.Select(x => NormalizeForCompare(x)));
 
             var inter = sa.Intersect(sb).Count();
             var uni = sa.Union(sb).Count();
             if (uni == 0) return 0.0;
             return (double)inter / uni;
+        }
+
+        private string NormalizeForCompare(string s)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return string.Empty;
+            var t = s.ToUpperInvariant().Trim();
+            var sb = new StringBuilder();
+            foreach (var ch in t)
+            {
+                if (char.IsLetterOrDigit(ch)) sb.Append(ch);
+                else sb.Append(' ');
+            }
+            return sb.ToString().Replace(" ", "").Trim();
+        }
+
+        private string MakeSafeTableName(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                return "Table1";
+
+            var sb = new System.Text.StringBuilder();
+            foreach (var ch in name)
+            {
+                if (char.IsLetterOrDigit(ch) || ch == '_') sb.Append(ch);
+                else if (char.IsWhiteSpace(ch)) sb.Append('_');
+            }
+
+            var candidate = sb.ToString();
+            if (string.IsNullOrWhiteSpace(candidate)) candidate = "Table1";
+            if (char.IsDigit(candidate[0])) candidate = "T_" + candidate;
+            if (candidate.Length > 50) candidate = candidate.Substring(0, 50);
+            return candidate;
         }
 
         public byte[] GerarCsvBytes(List<GenericRegistration> baseDados, string delimitador = ";")
@@ -86,12 +119,12 @@ namespace DataComparer.Services
 
             var headers = baseDados.First().Campos.Keys.ToList();
             var sb = new System.Text.StringBuilder();
-            sb.AppendLine(string.Join(separador, headers.Select(h => Helpers.EscapeCsv(h, separador))));
+            sb.AppendLine(string.Join(separador, headers.Select(h => EscapeCsv(h, separador))));
 
             foreach (var row in baseDados)
             {
                 var vals = headers.Select(h => row.Campos.TryGetValue(h, out var v) ? v : string.Empty);
-                sb.AppendLine(string.Join(separador, vals.Select(v => Helpers.EscapeCsv(v, separador))));
+                sb.AppendLine(string.Join(separador, vals.Select(v => EscapeCsv(v, separador))));
             }
 
             var contentBytes = System.Text.Encoding.UTF8.GetBytes(sb.ToString());
@@ -107,7 +140,24 @@ namespace DataComparer.Services
             return contentBytes;
         }
 
+        private string EscapeCsv(string s, char separador)
+        {
+            if (s == null)
+                return string.Empty;
 
+            if (s.Contains('"'))
+                s = s.Replace("\"", "\"\"");
+
+            if (s.Contains(separador)
+                || s.Contains('\n')
+                || s.Contains('\r')
+                || s.Contains('"'))
+            {
+                return $"\"{s}\"";
+            }
+
+            return s;
+        }
 
         public byte[] GerarExcelBytes(List<GenericRegistration> baseDados)
         {
@@ -135,139 +185,86 @@ namespace DataComparer.Services
             return package.GetAsByteArray();
         }
 
-        public async Task<byte[]> GerarExcelBytesMultiSheetAsync(byte[] originalWorkbookBytes,
-        List<SheetMapping> mappingsPorAba,
-        List<string>? desiredSheetNames = null,
-        List<List<string>>? desiredSheetHeaders = null)
+        public async Task<byte[]> GerarExcelBytesMultiSheetAsync(
+                        byte[] originalWorkbookBytes,
+                        Dictionary<string, SheetMapping> sheets)
         {
-            if (originalWorkbookBytes == null || originalWorkbookBytes.Length == 0)
+            if (sheets == null || !sheets.Any())
                 return Array.Empty<byte>();
 
-            using var inStream = new MemoryStream(originalWorkbookBytes);
-            using var inPackage = new ExcelPackage(inStream);
             using var outPackage = new ExcelPackage();
 
-            var tableSheets = inPackage.Workbook.Worksheets
-                .Where(w => (w.Tables != null && w.Tables.Count > 0)
-                            || (w.Dimension != null && (w.PivotTables == null || w.PivotTables.Count == 0)))
-                .ToList();
-
-            var usedTables = new HashSet<ExcelWorksheet>();
-
-            // LOOP PRINCIPAL POR ABA
-            if (desiredSheetNames != null && desiredSheetNames.Any())
+            foreach (var item in sheets)
             {
-                for (int i = 0; i < desiredSheetNames.Count; i++)
+                var nomeAba = item.Key;
+                var dadosAba = item.Value;
+
+                if (dadosAba == null)
+                    continue;
+
+                var registros = dadosAba.Registros;
+
+                if (registros == null || !registros.Any())
+                    continue;
+
+                var headersA = dadosAba.HeadersA ?? new List<string>();
+                var mapping = dadosAba.Mapping
+                              ?? new Dictionary<string, string>();
+                var wsOut = outPackage.Workbook.Worksheets.Add(
+                    MakeUniqueSheetName(outPackage, nomeAba));
+
+                // 🔹 Cabeçalhos
+                for (int c = 0; c < headersA.Count; c++)
                 {
-                    var targetName = string.IsNullOrWhiteSpace(desiredSheetNames[i])
-                        ? $"Sheet{i + 1}"
-                        : desiredSheetNames[i];
-
-                    var wsOut = outPackage.Workbook.Worksheets.Add(Helpers.MakeUniqueSheetName(outPackage, targetName));
-
-                    ExcelWorksheet src = null;
-
-                    // Match por headers (similaridade)
-                    if (desiredSheetHeaders != null && desiredSheetHeaders.Count > i)
-                    {
-                        var desiredHeaders = desiredSheetHeaders[i] ?? new List<string>();
-
-                        double bestScore = 0;
-                        ExcelWorksheet best = null;
-
-                        foreach (var candidate in tableSheets.Where(t => !usedTables.Contains(t)))
-                        {
-                            var candidateHeaders = ReadHeadersFromWorksheet(candidate);
-                            var score = ComputeJaccard(desiredHeaders, candidateHeaders);
-
-                            if (score > bestScore)
-                            {
-                                bestScore = score;
-                                best = candidate;
-                            }
-                        }
-
-                        if (best != null && bestScore >= 0.15)
-                        {
-                            src = best;
-                            usedTables.Add(src);
-                        }
-                    }
-
-                    //  fallback
-                    if (src == null)
-                    {
-                        src = tableSheets.FirstOrDefault(t => !usedTables.Contains(t));
-                        if (src != null) usedTables.Add(src);
-                    }
-
-                    List<Dictionary<string, string>> rows = new();
-
-                    if (src != null)
-                    {
-                        rows = ReadRowsFromWorksheet(src);
-
-                        if (rows == null || rows.Count == 0)
-                            rows = await CarregarExcelPorAba(new MemoryStream(originalWorkbookBytes), src.Name);
-                    }
-
-                    // 🔹 buscar mapping da aba atual
-                    var mappingPorAba = mappingsPorAba?
-                        .FirstOrDefault(m =>
-                        Helpers.NormalizeForCompare(m.NomeAbaB) ==
-                        Helpers.NormalizeForCompare(src?.Name ?? "")
-                        );
-
-                    // headers da aba
-                    var outHeaders = mappingPorAba?.HeadersA != null && mappingPorAba.HeadersA.Any()
-                    ? mappingPorAba.HeadersA
-                    : rows.FirstOrDefault()?.Keys.ToList() ?? new List<string>();
-
-                    // mapping da aba
-                    var mappingFinal = mappingPorAba?.Mapping;
-
-                    WriteSheetData(wsOut, outHeaders, rows, mappingFinal);
+                    wsOut.Cells[1, c + 1].Value = headersA[c];
                 }
 
-                if (outPackage.Workbook.Worksheets.Count == 0)
-                    return originalWorkbookBytes;
+                // 🔹 Dados
+                for (int r = 0; r < registros.Count; r++)
+                {
+                    var row = registros[r];
 
-                return outPackage.GetAsByteArray();
+                    for (int c = 0; c < headersA.Count; c++)
+                    {
+                        var colunaA = headersA[c];
+                        var colunaOrigem = colunaA;
+
+                        if (mapping.TryGetValue(colunaA, out var mapped)
+                            && !string.IsNullOrWhiteSpace(mapped))
+                        {
+                            colunaOrigem = mapped;
+                        }
+
+                        row.Campos.TryGetValue(colunaOrigem, out var valor);
+                        wsOut.Cells[r + 2, c + 1].Value =
+                            valor ?? string.Empty;
+                    }
+                }
+                wsOut.Cells.AutoFitColumns();
             }
-
-            //  fallback geral (sem desired)
-            foreach (var fsrc in tableSheets.Where(t => !usedTables.Contains(t)))
-            {
-                var fwsOut = outPackage.Workbook.Worksheets.Add(Helpers.MakeUniqueSheetName(outPackage, fsrc.Name));
-
-                var frows = ReadRowsFromWorksheet(fsrc);
-                if (frows == null || frows.Count == 0)
-                    frows = await CarregarExcelPorAba(new MemoryStream(originalWorkbookBytes), fsrc.Name);
-
-                var outHeaders = frows.FirstOrDefault()?.Keys.ToList() ?? new List<string>();
-
-                // 🔹 buscar mapping da aba atual
-                var mappingPorAba = mappingsPorAba?
-                    .FirstOrDefault(m =>
-                    Helpers.NormalizeForCompare(m.NomeAbaB) ==
-                    Helpers.NormalizeForCompare(fsrc?.Name ?? "")
-                    );
-
-                // headers da aba
-                var foutHeaders = mappingPorAba?.HeadersA != null && mappingPorAba.HeadersA.Any()
-                ? mappingPorAba.HeadersA
-                : frows.FirstOrDefault()?.Keys.ToList() ?? new List<string>();
-
-                // mapping da aba
-                var fmappingFinal = mappingPorAba?.Mapping;
-
-                WriteSheetData(fwsOut, foutHeaders, frows, fmappingFinal);
-            }
-
-            if (outPackage.Workbook.Worksheets.Count == 0)
-                return originalWorkbookBytes;
-
             return outPackage.GetAsByteArray();
+        }
+
+        private string MakeUniqueSheetName(ExcelPackage pkg, string baseName)
+        {
+            var invalidChars = new[] { ':', '\\', '/', '?', '*', '[', ']' };
+
+            var candidate = baseName;
+
+            foreach (var ch in invalidChars)
+            {
+                candidate = candidate.Replace(ch.ToString(), "");
+            }
+
+            candidate = candidate.Trim();
+
+            if (candidate.Length > 31)
+                candidate = candidate.Substring(0, 31);
+
+            if (string.IsNullOrWhiteSpace(candidate))
+                candidate = "Sheet";
+
+            return candidate;
         }
 
         private void WriteSheetData(ExcelWorksheet wsOut, List<string> outHeaders, List<Dictionary<string, string>> rows, Dictionary<string, string> mapping)
@@ -322,7 +319,7 @@ namespace DataComparer.Services
             for (int c = startCol; c <= endCol; c++)
             {
                 var original = ws.Cells[startRow, c].Text;
-                headers.Add(MapearColuna(Helpers.Normalize(original)));
+                headers.Add(MapearColuna(Normalize(original)));
             }
 
             for (int r = startRow + 1; r <= endRow; r++)
@@ -381,7 +378,7 @@ namespace DataComparer.Services
             for (int col = 1; col <= colunas; col++)
             {
                 var original = ws.Cells[1, col].Text;
-                headers.Add(MapearColuna(Helpers.Normalize(original)));
+                headers.Add(MapearColuna(Normalize(original)));
             }
 
             var lista = new List<Dictionary<string, string>>();
@@ -418,8 +415,8 @@ namespace DataComparer.Services
                 linhas.Add(linha);
 
             if (!linhas.Any()) return lista;
-            var separador = Helpers.DetectSeparator(linhas[0]);
-            var headers = linhas[0].Split(separador).Select(h => MapearColuna(Helpers.Normalize(h))).ToArray();
+            var separador = DetectSeparator(linhas[0]);
+            var headers = linhas[0].Split(separador).Select(h => MapearColuna(Normalize(h))).ToArray();
 
             foreach (var linhaRow in linhas.Skip(1))
             {

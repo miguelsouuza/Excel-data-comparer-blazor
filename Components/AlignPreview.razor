@@ -223,34 +223,61 @@
 
     private async Task Confirm()
     {
-        // Normalizar nome da aba B para chave
+        if (Result == null)
+            return;
+
+        if (string.IsNullOrWhiteSpace(abaSelecionadaA)
+            || string.IsNullOrWhiteSpace(abaSelecionadaB))
+        {
+            return;
+        }
+
+        // 🔹 chave única da aba B
         string keyB = Helpers.Normalize(abaSelecionadaB);
-        // Remover mapeamentos antigos desta aba
+
+        // 🔹 remove configuração antiga desta aba
         _appState.MapeamentosPorAba.RemoveAll(x =>
             Helpers.Normalize(x.NomeAbaB) == keyB);
-        // Adicionar novo SheetMapping na lista
+
+        // 🔹 adiciona novo mapping
         _appState.MapeamentosPorAba.Add(new SheetMapping
         {
             NomeAbaA = abaSelecionadaA,
             NomeAbaB = abaSelecionadaB,
-            HeadersA = headersAAtual,
-            HeadersB = headersBAtual,
-            Mapping = Result.Mapeamento
+
+            HeadersA = headersAAtual?.ToList() ?? new(),
+            HeadersB = headersBAtual?.ToList() ?? new(),
+
+            Mapping = Result.Mapeamento != null
+                ? new Dictionary<string, string>(Result.Mapeamento)
+                : new()
         });
-        // Salvar dados alinhados de BaseB nesta aba no AppState
+
+        // 🔹 salva registros alinhados desta aba
         _appState.BaseBPorAba[keyB] = new SheetMapping
         {
-            Registros = Result.Alinhada,
-            Mapping = Result.Mapeamento,
-            HeadersA = headersAAtual,
-            HeadersB = headersBAtual
+            NomeAbaA = abaSelecionadaA,
+            NomeAbaB = abaSelecionadaB,
+
+            HeadersA = headersAAtual?.ToList() ?? new(),
+            HeadersB = headersBAtual?.ToList() ?? new(),
+
+            Mapping = Result.Mapeamento != null
+                ? new Dictionary<string, string>(Result.Mapeamento)
+                : new(),
+
+            Registros = Result.Alinhada != null
+                ? Result.Alinhada.ToList()
+                : new()
         };
 
-        // Outros campos de estado
+        // 🔹 estado global
         _appState.DelimitadorCsv = delimitadorCsv;
         _appState.NomeArquivoExportacao = nomeArquivoExportacao;
+
         confirmed = true;
         enabledText = true;
+
         if (OnConfirmed.HasDelegate)
             await OnConfirmed.InvokeAsync();
     }
