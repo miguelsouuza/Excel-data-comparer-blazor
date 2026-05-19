@@ -4,29 +4,42 @@
 
 <div class="mt-2">
     <MudStack Row="true" Spacing="1" Class="mt-2">
-        <a href="@GetUrl("csv")" target="_blank">
-        @* <MudButton Color="Color.Info" Disabled="!Enabled" OnClick="ExportCsv">Baixar CSV</MudButton> *@
-        <MudButton Color="Color.Info" Disabled="!Enabled">Baixar CSV</MudButton>
-        </a>
-        <a href="@GetUrl("xlsx")" target="_blank">
-            @* <MudButton Color="Color.Info" Disabled="!Enabled" OnClick="ExportXlsx">Baixar XLSX</MudButton> *@
-            <MudButton Color="Color.Info" Disabled="!Enabled">Baixar XLSX</MudButton>
-        </a>
-        <a href="@GetUrl("json")" target="_blank">
-        @* <MudButton Color="Color.Info" Disabled="!Enabled" OnClick="ExportJson">Baixar JSON</MudButton> *@
-        <MudButton Color="Color.Info" Disabled="!Enabled">Baixar JSON</MudButton>
-        </a>
+        <MudButton Disabled="Disabled"
+                   OnClick="@(() => Baixar("csv"))">
+            Baixar CSV
+        </MudButton>
+        @* <MudButton Color="Color.Primary" Disabled="!Enabled" OnClick="ExportCsv">Baixar CSV</MudButton> *@
+        <MudButton Disabled="Disabled"
+                   OnClick="@(() => Baixar("xlsx"))">
+            Baixar XLSX
+        </MudButton>
+            @* <MudButton Color="Color.Primary" Disabled="!Enabled" OnClick="ExportXlsx">Baixar XLSX</MudButton> *@
+        <MudButton Disabled="Disabled"
+                   OnClick="@(() => Baixar("json"))">
+            Baixar CSV
+        </MudButton>
+        @* <MudButton Color="Color.Primary" Disabled="!Enabled" OnClick="ExportJson">Baixar JSON</MudButton> *@
     </MudStack>
 </div>
 
 @code {
     [Parameter]
-    public bool Enabled { get; set; } = false;
+    public bool Disabled { get; set; } = true;
 
-    private string GetUrl(string tipo)
+    // private string GetUrl(string tipo)
+    // {
+    //     var nome = Uri.EscapeDataString(_appState.NomeArquivoExportacao ?? "baseb");
+    //     return $"/download/baseb/{tipo}?name={nome}&t={DateTime.Now.Ticks}";
+    // }
+    private void Baixar(string tipo)
     {
-        var nome = Uri.EscapeDataString(_appState.NomeArquivoExportacao ?? "baseb");
-        return $"/download/baseb/{tipo}?name={nome}&t={DateTime.Now.Ticks}";
+        var nome = Uri.EscapeDataString(
+            _appState.NomeArquivoExportacao ?? "baseb");
+
+        var url =
+            $"/download/baseb/{tipo}?name={nome}&t={DateTime.Now.Ticks}";
+
+        nav.NavigateTo(url, true);
     }
     // private void ExportCsv()
     // {

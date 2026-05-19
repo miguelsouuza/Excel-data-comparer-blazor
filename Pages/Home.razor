@@ -82,7 +82,14 @@
         @if (alignmentResult != null)
         {
             <MudPaper Class="pa-4 mt-4">
-                <AlignPreview Result="alignmentResult" OnConfirmed="HandleConfirmed" OnClose="HandleClosePreview" />
+                <AlignPreview Result="alignmentResult"
+                              abaSelecionadaA="@abaSelecionadaA"
+                              abaSelecionadaB="@abaSelecionadaB"
+                              headersAAtual="@baseA.First().Campos.Keys.ToList()"
+                              headersBAtual="@baseB.First().Campos.Keys.ToList()"
+                              mappingAtual="@mapeamento"
+                              OnConfirmed="HandleConfirmed"
+                              OnClose="HandleClosePreview" />
             </MudPaper>
         }
 
@@ -124,7 +131,7 @@
 
     private Dictionary<string, string> mapeamento = new();
     private Dictionary<string, string> mapeamentoUI = new();
-    private List<string,SheetMapping> mapeamentosPorAba = new();
+    private Dictionary<string,SheetMapping> mapeamentosPorAba = new();
 
     private List<string> abasA = new();
     private List<string> abasB = new();

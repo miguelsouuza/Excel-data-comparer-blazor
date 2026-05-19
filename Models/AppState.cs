@@ -30,7 +30,7 @@ public class AppState
 
     public bool ShowMappingColumn { get; set; } = false;
 
-    public string NomeArquivoExportacao { get; set; } = "resultado_alinhamento";
+    public string NomeArquivoExportacao { get; set; } = string.Empty;
 
     // 🔹 MULTI-ABA
     public Dictionary<string, SheetMapping> MapeamentosPorAba { get; set; } = new();

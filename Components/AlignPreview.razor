@@ -115,7 +115,7 @@
             </MudText>
 
             <MudSelect T="string"
-                       Disabled="enabledText"
+                       Disabled="textDisabled"
                        Label="Selecione o delimitador"
                        @bind-Value="delimitadorCsv">
 
@@ -144,51 +144,62 @@
                     Nome do arquivo exportado
                 </MudText>
                 <MudTextField T="string"
-                              Disabled="enabledText"
+                              Disabled="textDisabled"
                               Label="Nome do arquivo"
-                              @bind-Value="nomeArquivoExportacao"
                               Immediate="true"
+                              ValueChanged="OnNomeChanged"
+                              Value="nomeArquivoExportacao"
                               Variant="Variant.Outlined" />
             </MudPaper>
-            <ExportComponent Enabled="confirmed" />
+            <ExportComponent Disabled="buttonExportDisabled" />
         </div>
 
-        <div class="mt-3">
+        <div class="d-flex justify-content-end mt-3">
 
             <MudButton Color="Color.Success" OnClick="Confirm">Confirmar e usar este resultado</MudButton>
+            <div>
+                @if (buttonCancelEnabled)
+                {
+                    <MudButton Color="Color.Error"
+                               Variant="Variant.Outlined"
+                               OnClick="CancelarConfirmacao">
+                        Cancelar confirmação
+                    </MudButton>
+                }
+            </div>
         </div>
-
-   
     }
 </MudPaper>
 
-    @code {
+@code {
     [Parameter]
     public AlignmentResult Result { get; set; }
 
     [Parameter]
     public EventCallback OnConfirmed { get; set; }
 
-    [Parameter]     
+    [Parameter]
     public string abaSelecionadaA { get; set; }
 
-    [Parameter] 
+    [Parameter]
     public string abaSelecionadaB { get; set; }
 
-    [Parameter] 
+    [Parameter]
     public List<string> headersAAtual { get; set; }
 
-    [Parameter] 
+    [Parameter]
     public List<string> headersBAtual { get; set; }
 
-    [Parameter] 
+    [Parameter]
     public Dictionary<string, string> mappingAtual { get; set; }
-
-    private bool confirmed = false;
-    private bool enabledText = false;
 
     [Parameter]
     public EventCallback OnClose { get; set; }
+
+    private bool buttonExportDisabled = true;
+    private bool textDisabled = false;
+    private bool nomeInicializado = false;
+    private bool buttonCancelEnabled = false;
 
     private string nomeArquivoExportacao = "";
     private string delimitadorCsv = ";";
@@ -197,25 +208,49 @@
     private const string pipe = "|";
     private const string pontoVirgula = ";";
 
-    private string ultimoArquivo = "";
+
 
     protected override void OnParametersSet()
     {
-        var nomeAtual =Path.GetFileNameWithoutExtension(_appState.NomeArquivoA);
-
-        if (ultimoArquivo != nomeAtual)
+        if (!nomeInicializado)
         {
-            ultimoArquivo = nomeAtual;
-
             nomeArquivoExportacao =
-                $"{nomeAtual}";
+                Path.GetFileNameWithoutExtension(_appState.NomeArquivoA);
+
+            nomeInicializado = true;
         }
+    }
+
+    private void CancelarConfirmacao()
+    {
+        buttonCancelEnabled = false;
+        textDisabled = false;
+
+        var keyB = Helpers.Normalize(abaSelecionadaB);
+
+        if (_appState.MapeamentosPorAba.ContainsKey(keyB))
+        {
+            _appState.MapeamentosPorAba.Remove(keyB);
+        }
+
+        StateHasChanged();
+    }
+
+    private void OnNomeChanged(string value)
+    {
+        nomeArquivoExportacao = value;
+        _appState.NomeArquivoExportacao = value;
+
+        StateHasChanged();
     }
 
     private async Task Close()
     {
         // reset local confirmed state
-        confirmed = false;
+        buttonExportDisabled = false;
+        textDisabled = false;
+
+        StateHasChanged();
 
         if (OnClose.HasDelegate)
             await OnClose.InvokeAsync();
@@ -231,30 +266,11 @@
         {
             return;
         }
-
         // 🔹 chave única da aba B
         string keyB = Helpers.Normalize(abaSelecionadaB);
 
-        // 🔹 remove configuração antiga desta aba
-        _appState.MapeamentosPorAba.RemoveAll(x =>
-            Helpers.Normalize(x.NomeAbaB) == keyB);
-
-        // 🔹 adiciona novo mapping
-        _appState.MapeamentosPorAba.Add(new SheetMapping
-        {
-            NomeAbaA = abaSelecionadaA,
-            NomeAbaB = abaSelecionadaB,
-
-            HeadersA = headersAAtual?.ToList() ?? new(),
-            HeadersB = headersBAtual?.ToList() ?? new(),
-
-            Mapping = Result.Mapeamento != null
-                ? new Dictionary<string, string>(Result.Mapeamento)
-                : new()
-        });
-
-        // 🔹 salva registros alinhados desta aba
-        _appState.BaseBPorAba[keyB] = new SheetMapping
+        // 🔹 salva tudo diretamente no dictionary
+        _appState.MapeamentosPorAba[keyB] = new SheetMapping
         {
             NomeAbaA = abaSelecionadaA,
             NomeAbaB = abaSelecionadaB,
@@ -275,11 +291,13 @@
         _appState.DelimitadorCsv = delimitadorCsv;
         _appState.NomeArquivoExportacao = nomeArquivoExportacao;
 
-        confirmed = true;
-        enabledText = true;
+        buttonExportDisabled = false;
+        textDisabled = true;
+        StateHasChanged();
 
         if (OnConfirmed.HasDelegate)
             await OnConfirmed.InvokeAsync();
+
     }
 
 }
