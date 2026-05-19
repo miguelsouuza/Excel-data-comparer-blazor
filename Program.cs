@@ -1,5 +1,7 @@
 using DataComparer.Components;
+using DataComparer.Models;
 using DataComparer.Services;
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using MudBlazor.Services;
 using OfficeOpenXml;
 
@@ -35,124 +37,113 @@ app.UseHttpsRedirection();
 app.UseAntiforgery();
 
 // Endpoints para download da Base B atual em CSV ou XLSX
-app.MapGet("/download/baseb/csv", (AppState state, FileService svc) =>
-{   
-    var bytes = svc.GerarCsvBytes(state.BaseB, state.DelimitadorCsv);
-    if (bytes == null || bytes.Length == 0)
+app.MapGet("/download/baseb/xlsx", async (AppState state) =>
+{
+    if (state.StreamB == null)
         return Results.NotFound();
 
-    var name = state.NomeArquivoExportacao ?? state.NomeArquivoB ?? "baseb";
-    var baseName = System.IO.Path.GetFileNameWithoutExtension(name);
-    var fileName = baseName + ".csv";
-    return Results.File(bytes, "text/csv; charset=utf-8", fileName);
-});
+    state.StreamB.Position = 0;
 
-app.MapGet("/download/baseb/xlsx", async (AppState state, FileService svc) =>
-{
-    // se tivermos o stream original salvo, geramos um XLSX multi-aba preservando nomes
-    if (state.StreamB != null)
+    using var originalPackage = new ExcelPackage(state.StreamB);
+    using var outputPackage = new ExcelPackage();
+
+    foreach (var wsOriginal in originalPackage.Workbook.Worksheets)
     {
-        var origBytes = state.StreamB.ToArray();
-        var headersA = state.BaseA?.FirstOrDefault()?.Campos.Keys.ToList();
-        var mapping = state.Mapeamento;
+        var nomeAba = Helpers.Normalize(wsOriginal.Name);
 
-        // tentar obter nomes das abas da Base A (se o stream A estiver disponível)
-        List<string>? desiredNames = null;
-        List<List<string>>? desiredHeaders = null;
-        if (state.StreamA != null)
+        // 🔹 existe alinhamento salvo?
+        if (state.MapeamentosPorAba.TryGetValue(nomeAba, out var dadosAba))
         {
-            try
+            var wsOut = outputPackage.Workbook.Worksheets.Add(wsOriginal.Name);
+
+            var headersA = dadosAba.HeadersA;
+            var mapping = dadosAba.Mapping;
+            var registros = dadosAba.Registros;
+
+            // cabeçalhos
+            for (int c = 0; c < headersA.Count; c++)
             {
-                using var msA = new MemoryStream();
-                state.StreamA.Position = 0;
-                await state.StreamA.CopyToAsync(msA);
-                msA.Position = 0;
-                using var pkgA = new ExcelPackage(msA);
-                var validSheets = pkgA.Workbook.Worksheets
-    .Where(ws =>
-        ws != null &&
-        (
-            ws.Dimension != null ||
-            (ws.Tables != null && ws.Tables.Count > 0)
-        )
-    )
-    .ToList();
-
-                desiredNames = validSheets
-                    .Select(ws => ws.Name)
-                    .ToList();
-
-                desiredHeaders = validSheets
-                    .Select(ws =>
-                    {
-                        int startCol;
-                        int endCol;
-                        int headerRow;
-
-                        // 🔹 Aba normal
-                        if (ws.Dimension != null)
-                        {
-                            startCol = ws.Dimension.Start.Column;
-                            endCol = ws.Dimension.End.Column;
-                            headerRow = ws.Dimension.Start.Row;
-                        }
-
-                        // 🔹 Aba baseada em tabela
-                        else if (ws.Tables != null && ws.Tables.Count > 0)
-                        {
-                            var addr = ws.Tables[0].Address;
-
-                            startCol = addr.Start.Column;
-                            endCol = addr.End.Column;
-                            headerRow = addr.Start.Row;
-                        }
-
-                        // 🔹 fallback
-                        else
-                        {
-                            return new List<string>();
-                        }
-
-                        return Enumerable.Range(startCol, endCol - startCol + 1)
-                            .Select(c => ws.Cells[headerRow, c].Text ?? string.Empty)
-                            .ToList();
-                    })
-                    .ToList();
+                wsOut.Cells[1, c + 1].Value = headersA[c];
             }
-            catch
+
+            // linhas
+            for (int r = 0; r < registros.Count; r++)
             {
-                desiredNames = null;
+                var row = registros[r];
+
+                for (int c = 0; c < headersA.Count; c++)
+                {
+                    var colunaA = headersA[c];
+
+                    var colunaOrigem = colunaA;
+
+                    if (mapping.TryGetValue(colunaA, out var mapped)
+                        && !string.IsNullOrWhiteSpace(mapped))
+                    {
+                        colunaOrigem = mapped;
+                    }
+
+                    row.Campos.TryGetValue(colunaOrigem, out var valor);
+
+                    wsOut.Cells[r + 2, c + 1].Value = valor ?? "";
+                }
+            }
+
+            wsOut.Cells.AutoFitColumns();
+        }
+        else
+        {
+            // 🔹 copia aba original sem alterar
+            var wsCopy = outputPackage.Workbook.Worksheets.Add(wsOriginal.Name);
+
+            if (wsOriginal.Dimension != null)
+            {
+                int rows = wsOriginal.Dimension.End.Row;
+                int cols = wsOriginal.Dimension.End.Column;
+
+                for (int r = 1; r <= rows; r++)
+                {
+                    for (int c = 1; c <= cols; c++)
+                    {
+                        wsCopy.Cells[r, c].Value =
+                            wsOriginal.Cells[r, c].Value;
+                    }
+                }
+
+                wsCopy.Cells.AutoFitColumns();
             }
         }
-
-        var bytes = await svc.GerarExcelBytesMultiSheetAsync(origBytes, headersA, mapping, desiredNames, desiredHeaders);
-        if (bytes == null || bytes.Length == 0)
-            return Results.NotFound();
-
-        var name = state.NomeArquivoExportacao ?? state.NomeArquivoB ?? "baseb";
-        var baseName = System.IO.Path.GetFileNameWithoutExtension(name);
-        var fileName = baseName + ".xlsx";
-        return Results.File(bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fileName);
     }
 
-    // fallback: gerar a partir do BaseB único
-    var single = svc.GerarExcelBytes(state.BaseB);
-    if (single == null || single.Length == 0)
-        return Results.NotFound();
+    var bytes = outputPackage.GetAsByteArray();
 
-    var fname = state.NomeArquivoExportacao ?? state.NomeArquivoB ?? "baseb";
-    var fn = System.IO.Path.GetFileNameWithoutExtension(fname) + ".xlsx";
-    return Results.File(single, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", fn);
+    var name = state.NomeArquivoExportacao
+               ?? state.NomeArquivoA
+               ?? "baseb";
+
+    var baseName = Path.GetFileNameWithoutExtension(name);
+
+    return Results.File(
+        bytes,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        $"{baseName}.xlsx");
 });
 
-app.MapGet("/download/baseb/json", (AppState state) =>
+app.MapGet("/download/baseb/json", (AppState state, HttpRequest request) =>
 {
     if (state.BaseB == null || !state.BaseB.Any())
         return Results.NotFound();
 
     var json = System.Text.Json.JsonSerializer.Serialize(state.BaseB);
     var bytes = System.Text.Encoding.UTF8.GetBytes(json);
-    var name = state.NomeArquivoExportacao ?? state.NomeArquivoB ?? "baseb";
+
+    var queryName = request.Query["name"].ToString();
+    var name = !string.IsNullOrWhiteSpace(queryName)
+        ? queryName
+        : state.NomeArquivoExportacao
+          ?? state.NomeArquivoA
+          ?? "baseb";
+
     var baseName = System.IO.Path.GetFileNameWithoutExtension(name);
     var fileName = baseName + ".json";
     return Results.File(bytes, "application/json; charset=utf-8", fileName);

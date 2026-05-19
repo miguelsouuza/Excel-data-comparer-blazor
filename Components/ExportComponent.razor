@@ -2,38 +2,65 @@
 @inject NavigationManager nav
 @inject AppState _appState
 
-<div class="mt-2">   
+<div class="mt-2">
     <MudStack Row="true" Spacing="1" Class="mt-2">
-        <MudButton Color="Color.Info" Disabled="!Enabled" OnClick="ExportCsv">Baixar CSV</MudButton>
-        <MudButton Color="Color.Info" Disabled="!Enabled" OnClick="ExportXlsx">Baixar XLSX</MudButton>
-        <MudButton Color="Color.Info" Disabled="!Enabled" OnClick="ExportJson">Baixar JSON</MudButton>
+        <MudButton Disabled="Disabled"
+                   OnClick="@(() => Baixar("csv"))">
+            Baixar CSV
+        </MudButton>
+        @* <MudButton Color="Color.Primary" Disabled="!Enabled" OnClick="ExportCsv">Baixar CSV</MudButton> *@
+        <MudButton Disabled="Disabled"
+                   OnClick="@(() => Baixar("xlsx"))">
+            Baixar XLSX
+        </MudButton>
+            @* <MudButton Color="Color.Primary" Disabled="!Enabled" OnClick="ExportXlsx">Baixar XLSX</MudButton> *@
+        <MudButton Disabled="Disabled"
+                   OnClick="@(() => Baixar("json"))">
+            Baixar CSV
+        </MudButton>
+        @* <MudButton Color="Color.Primary" Disabled="!Enabled" OnClick="ExportJson">Baixar JSON</MudButton> *@
     </MudStack>
 </div>
 
 @code {
     [Parameter]
-    public bool Enabled { get; set; } = false;
+    public bool Disabled { get; set; } = true;
 
-    private void ExportCsv()
+    // private string GetUrl(string tipo)
+    // {
+    //     var nome = Uri.EscapeDataString(_appState.NomeArquivoExportacao ?? "baseb");
+    //     return $"/download/baseb/{tipo}?name={nome}&t={DateTime.Now.Ticks}";
+    // }
+    private void Baixar(string tipo)
     {
+        var nome = Uri.EscapeDataString(
+            _appState.NomeArquivoExportacao ?? "baseb");
+
+        var url =
+            $"/download/baseb/{tipo}?name={nome}&t={DateTime.Now.Ticks}";
+
+        nav.NavigateTo(url, true);
+    }
+    // private void ExportCsv()
+    // {
         
-        var nome = Uri.EscapeDataString(_appState.NomeArquivoExportacao ?? "");
+    //     var nome = Uri.EscapeDataString(_appState.NomeArquivoExportacao ?? "");
 
-        nav.NavigateTo($"/download/baseb/csv?name={nome}&t={DateTime.Now.Ticks}", true);
-    }
+    //     nav.NavigateTo($"/download/baseb/csv?name={nome}&t={DateTime.Now.Ticks}", true);
+    // }
 
-    private void ExportJson()
-    {
-        var nome = Uri.EscapeDataString(_appState.NomeArquivoExportacao ?? "");
+    // private void ExportJson()
+    // {
+    //     var nome = Uri.EscapeDataString(_appState.NomeArquivoExportacao ?? "");
 
-        nav.NavigateTo($"/download/baseb/json?name={nome}&t={DateTime.Now.Ticks}", true);
-    }
+    //     nav.NavigateTo($"/download/baseb/json?name={nome}&t={DateTime.Now.Ticks}", true);
+    // }
+    // private void ExportXlsx()
+    // {
+    //     var nome = Uri.EscapeDataString(_appState.NomeArquivoExportacao ?? "");
 
-    private void ExportXlsx()
-    {
-        var nome = Uri.EscapeDataString(_appState.NomeArquivoExportacao ?? "");
-
-        nav.NavigateTo($"/download/baseb/xlsx?name={nome}&t={DateTime.Now.Ticks}", true);
-    }
+    //     nav.NavigateTo($"/download/baseb/xlsx?name={nome}&t={DateTime.Now.Ticks}", true);
+    //     // nav.NavigateTo($"/download/baseb/xlsx?name={nome}", true);
+    // }
 
 }

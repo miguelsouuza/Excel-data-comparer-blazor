@@ -1,4 +1,5 @@
 ﻿@page "/"
+@using DataComparer.Models
 @layout MainLayout
 
 @inject IHeaderCompareService _headerCompareService
@@ -81,7 +82,14 @@
         @if (alignmentResult != null)
         {
             <MudPaper Class="pa-4 mt-4">
-                <AlignPreview Result="alignmentResult" OnConfirmed="HandleConfirmed" OnClose="HandleClosePreview" />
+                <AlignPreview Result="alignmentResult"
+                              abaSelecionadaA="@abaSelecionadaA"
+                              abaSelecionadaB="@abaSelecionadaB"
+                              headersAAtual="@baseA.First().Campos.Keys.ToList()"
+                              headersBAtual="@baseB.First().Campos.Keys.ToList()"
+                              mappingAtual="@mapeamento"
+                              OnConfirmed="HandleConfirmed"
+                              OnClose="HandleClosePreview" />
             </MudPaper>
         }
 
@@ -117,12 +125,13 @@
     }
 </MudContainer>
 
-@code {
+    @code {
     public List<string> IdsA { get; set; } = new();
     public List<string> IdsB { get; set; } = new();
 
     private Dictionary<string, string> mapeamento = new();
     private Dictionary<string, string> mapeamentoUI = new();
+    private Dictionary<string,SheetMapping> mapeamentosPorAba = new();
 
     private List<string> abasA = new();
     private List<string> abasB = new();
@@ -140,7 +149,7 @@
     private string? originalNomeArquivoB;
 
     private bool carregandoArquivo = false;
-    
+
     protected override void OnInitialized()
     {
         // 🔹 Restaurar bases
@@ -149,6 +158,7 @@
 
         // 🔹 Restaurar mapeamentos
         mapeamento = _appState.Mapeamento ?? new();
+        mapeamentosPorAba  = _appState.MapeamentosPorAba ?? new();
         mapeamentoUI = _appState.MapeamentoUI ?? new();
 
         // 🔹 Restaurar IDs

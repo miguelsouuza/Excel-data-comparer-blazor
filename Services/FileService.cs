@@ -6,6 +6,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using DataComparer.Models;
+
 
 namespace DataComparer.Services
 {
@@ -122,7 +124,7 @@ namespace DataComparer.Services
             foreach (var row in baseDados)
             {
                 var vals = headers.Select(h => row.Campos.TryGetValue(h, out var v) ? v : string.Empty);
-                sb.AppendLine(string.Join(separador, vals.Select(v => EscapeCsv(v,separador))));
+                sb.AppendLine(string.Join(separador, vals.Select(v => EscapeCsv(v, separador))));
             }
 
             var contentBytes = System.Text.Encoding.UTF8.GetBytes(sb.ToString());
@@ -183,125 +185,63 @@ namespace DataComparer.Services
             return package.GetAsByteArray();
         }
 
-        public async Task<byte[]> GerarExcelBytesMultiSheetAsync(byte[] originalWorkbookBytes, List<string> headersA, Dictionary<string, string> mapping, List<string>? desiredSheetNames = null, List<List<string>>? desiredSheetHeaders = null)
+        public async Task<byte[]> GerarExcelBytesMultiSheetAsync(
+                        byte[] originalWorkbookBytes,
+                        Dictionary<string, SheetMapping> sheets)
         {
-            if (originalWorkbookBytes == null || originalWorkbookBytes.Length == 0)
+            if (sheets == null || !sheets.Any())
                 return Array.Empty<byte>();
 
-            using var inStream = new MemoryStream(originalWorkbookBytes);
-            using var inPackage = new ExcelPackage(inStream);
             using var outPackage = new ExcelPackage();
 
-            // consider worksheets that are actual Excel tables OR regular worksheets with data (but skip pivot-only sheets)
-            var tableSheets = inPackage.Workbook.Worksheets
-                .Where(w => (w.Tables != null && w.Tables.Count > 0)
-                            || (w.Dimension != null && (w.PivotTables == null || w.PivotTables.Count == 0)))
-                .ToList();
-
-            // preparar mapa por nome normalizado para tentar casar abas por nome primeiro
-            Dictionary<string, Queue<ExcelWorksheet>> tableMapByName = new();
-            foreach (var t in tableSheets)
+            foreach (var item in sheets)
             {
-                var key = NormalizeForCompare(t.Name);
-                if (!tableMapByName.TryGetValue(key, out var q))
+                var nomeAba = item.Key;
+                var dadosAba = item.Value;
+
+                if (dadosAba == null)
+                    continue;
+
+                var registros = dadosAba.Registros;
+
+                if (registros == null || !registros.Any())
+                    continue;
+
+                var headersA = dadosAba.HeadersA ?? new List<string>();
+                var mapping = dadosAba.Mapping
+                              ?? new Dictionary<string, string>();
+                var wsOut = outPackage.Workbook.Worksheets.Add(
+                    MakeUniqueSheetName(outPackage, nomeAba));
+
+                // 🔹 Cabeçalhos
+                for (int c = 0; c < headersA.Count; c++)
                 {
-                    q = new Queue<ExcelWorksheet>();
-                    tableMapByName[key] = q;
-                }
-                q.Enqueue(t);
-            }
-            var usedTables = new HashSet<ExcelWorksheet>();
-
-            // If desired names provided, produce a sheet per desired name
-            if (desiredSheetNames != null && desiredSheetNames.Any())
-            {
-                for (int i = 0; i < desiredSheetNames.Count; i++)
-                {
-                    var targetName = string.IsNullOrWhiteSpace(desiredSheetNames[i]) ? $"Sheet{i + 1}" : desiredSheetNames[i];
-                    var candidateName = MakeUniqueSheetName(outPackage, targetName);
-                    var wsOut = outPackage.Workbook.Worksheets.Add(candidateName);
-
-                    List<Dictionary<string, string>> rows = new();
-                    ExcelWorksheet src = null;
-
-                    // tentar casar por similaridade de headers (se fornecido)
-                    if (desiredSheetHeaders != null && desiredSheetHeaders.Count > i)
-                    {
-                        var desiredHeaders = desiredSheetHeaders[i] ?? new List<string>();
-                        double bestScore = 0;
-                        ExcelWorksheet best = null;
-                        foreach (var candidate in tableSheets.Where(t => !usedTables.Contains(t)))
-                        {
-                            var candidateHeaders = ReadHeadersFromWorksheet(candidate);
-                            var score = ComputeJaccard(desiredHeaders, candidateHeaders);
-                            if (score > bestScore)
-                            {
-                                bestScore = score;
-                                best = candidate;
-                            }
-                        }
-
-                        // escolher melhor se pontuação aceitável
-                        if (best != null && bestScore >= 0.15)
-                        {
-                            src = best;
-                            usedTables.Add(src);
-                        }
-                    }
-
-                    // se não encontrou por similaridade, tentar por nome normalizado
-                    if (src == null)
-                    {
-                        var desired = desiredSheetNames != null && desiredSheetNames.Count > i ? desiredSheetNames[i] : string.Empty;
-                        var norm = NormalizeForCompare(desired ?? string.Empty);
-                        if (tableMapByName.TryGetValue(norm, out var queue) && queue.Count > 0)
-                        {
-                            src = queue.Dequeue();
-                            usedTables.Add(src);
-                        }
-                    }
-
-                    // fallback: usar a próxima tabela disponível por índice
-                    if (src == null)
-                    {
-                        src = tableSheets.FirstOrDefault(t => !usedTables.Contains(t));
-                        if (src != null) usedTables.Add(src);
-                    }
-
-                    if (src != null)
-                    {
-                        rows = ReadRowsFromWorksheet(src);
-                        if (rows == null || rows.Count == 0)
-                            rows = await CarregarExcelPorAba(new MemoryStream(originalWorkbookBytes), src.Name);
-                    }
-
-                    var outHeaders = (headersA != null && headersA.Any()) ? headersA.ToList() : rows.FirstOrDefault()?.Keys.ToList() ?? new List<string>();
-                    WriteSheetData(wsOut, outHeaders, rows, mapping);
+                    wsOut.Cells[1, c + 1].Value = headersA[c];
                 }
 
-                if (outPackage.Workbook.Worksheets.Count == 0)
-                    return originalWorkbookBytes;
+                // 🔹 Dados
+                for (int r = 0; r < registros.Count; r++)
+                {
+                    var row = registros[r];
 
-                return outPackage.GetAsByteArray();
+                    for (int c = 0; c < headersA.Count; c++)
+                    {
+                        var colunaA = headersA[c];
+                        var colunaOrigem = colunaA;
+
+                        if (mapping.TryGetValue(colunaA, out var mapped)
+                            && !string.IsNullOrWhiteSpace(mapped))
+                        {
+                            colunaOrigem = mapped;
+                        }
+
+                        row.Campos.TryGetValue(colunaOrigem, out var valor);
+                        wsOut.Cells[r + 2, c + 1].Value =
+                            valor ?? string.Empty;
+                    }
+                }
+                wsOut.Cells.AutoFitColumns();
             }
-
-            // Fallback: include all table sheets from B
-            // include remaining tables (if any) using their original names
-            foreach (var src in tableSheets.Where(t => !usedTables.Contains(t)))
-            {
-                var candidateName = MakeUniqueSheetName(outPackage, src.Name);
-                var wsOut = outPackage.Workbook.Worksheets.Add(candidateName);
-                var rows = ReadRowsFromWorksheet(src);
-                if (rows == null || rows.Count == 0)
-                    rows = await CarregarExcelPorAba(new MemoryStream(originalWorkbookBytes), src.Name);
-
-                var outHeaders = (headersA != null && headersA.Any()) ? headersA.ToList() : rows.FirstOrDefault()?.Keys.ToList() ?? new List<string>();
-                WriteSheetData(wsOut, outHeaders, rows, mapping);
-            }
-
-            if (outPackage.Workbook.Worksheets.Count == 0)
-                return originalWorkbookBytes;
-
             return outPackage.GetAsByteArray();
         }
 
@@ -502,5 +442,5 @@ namespace DataComparer.Services
             };
         }
     }
-    
+
 }
