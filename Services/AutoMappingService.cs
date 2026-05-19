@@ -27,10 +27,15 @@ public class AutoMappingService : IAutoMappingService
     }
 
     // Alinha a Base B para ter as mesmas colunas e ordem da Base A.
-    public (List<GenericRegistration> Alinhada, Dictionary<string, string> Mapeamento) AlinharBaseB(
-        List<GenericRegistration> baseA,
-        List<GenericRegistration> baseB)
+    public AlignmentResult AlinharBaseB(
+    List<GenericRegistration> baseA,
+    List<GenericRegistration> baseB,
+    Dictionary<string, string>? colunasFixasDaBaseA = null,
+    Dictionary<string, string>? valoresFixos = null)
     {
+        colunasFixasDaBaseA ??= new();
+        valoresFixos ??= new();
+
         var headersA = baseA?.FirstOrDefault()?.Campos.Keys.ToList() ?? new List<string>();
         var headersB = baseB?.FirstOrDefault()?.Campos.Keys.ToList() ?? new List<string>();
 
@@ -100,9 +105,6 @@ public class AutoMappingService : IAutoMappingService
         // remove leftover columns that are neither mapped nor present in A and are empty
         var removable = headersB.Where(h => !keepInB.Contains(h) && emptyColsB.Contains(h)).ToList();
 
-        // -> Adicionar colunas mapeadas diretamente na baseB (mesmo padrão)
-        // Para cada coluna A mapeada para uma coluna B, criaremos a coluna A em cada registro de baseB
-        // copiando os valores da coluna B. Para colunas A sem mapeamento, garantimos a presença da chave com valor vazio.
         foreach (var colA in headersA)
         {
             if (mapeamento.TryGetValue(colA, out var srcCol) && !string.IsNullOrWhiteSpace(srcCol))
@@ -147,18 +149,43 @@ public class AutoMappingService : IAutoMappingService
 
             foreach (var colA in headersA)
             {
-                // obter coluna correspondente em B
-                if (mapeamento.TryGetValue(colA, out var colB) && !string.IsNullOrWhiteSpace(colB))
+                string valorFinal = "";
+
+                // 🔹 mapeamento normal
+                if (mapeamento.TryGetValue(colA, out var colB)
+                    && !string.IsNullOrWhiteSpace(colB))
                 {
-                    row.Campos.TryGetValue(colB, out var varB);
-                    novo.Campos[colA] = varB ?? "";
+                    row.Campos.TryGetValue(colB, out var valorB);
+                    valorFinal = valorB ?? "";
                 }
-                else
+
+                // 🔹 mesmo nome
+                else if (row.Campos.ContainsKey(colA))
                 {
-                    // se não mapeado, tenta pegar mesmo nome
-                    row.Campos.TryGetValue(colA, out var varB);
-                    novo.Campos[colA] = varB ?? "";
+                    row.Campos.TryGetValue(colA, out var valorMesmoNome);
+                    valorFinal = valorMesmoNome ?? "";
                 }
+
+                // 🔹 valor vindo de coluna da Base A
+                else if (colunasFixasDaBaseA.TryGetValue(colA, out var colunaOrigemA)
+                    && !string.IsNullOrWhiteSpace(colunaOrigemA))
+                {
+                    var indice = baseB.IndexOf(row);
+
+                    if (indice >= 0 && indice < baseA.Count)
+                    {
+                        baseA[indice].Campos.TryGetValue(colunaOrigemA, out var valorA);
+                        valorFinal = valorA ?? "";
+                    }
+                }
+
+                // 🔹 valor fixo digitado
+                else if (valoresFixos.TryGetValue(colA, out var valorFixo))
+                {
+                    valorFinal = valorFixo ?? "";
+                }
+
+                novo.Campos[colA] = valorFinal;
             }
 
             aligned.Add(novo);
@@ -175,7 +202,12 @@ public class AutoMappingService : IAutoMappingService
             }
         }
 
-        return (aligned, mapeamento);
+        return new AlignmentResult
+        {
+            Alinhada = aligned,
+            Mapeamento = mapeamento,
+            HeadersOriginaisB = headersB
+        };
     }
 
     private double Similaridade(string a, string b)

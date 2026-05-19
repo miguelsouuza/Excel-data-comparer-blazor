@@ -37,14 +37,14 @@ app.UseHttpsRedirection();
 app.UseAntiforgery();
 
 // Endpoints para download da Base B atual em CSV ou XLSX
-app.MapGet("/download/baseb/xlsx", async (AppState state) =>
+app.MapGet("/download/baseb/xlsx", async (AppState _appState) =>
 {
-    if (state.StreamB == null)
+    if (_appState.StreamB == null)
         return Results.NotFound();
 
-    state.StreamB.Position = 0;
+    _appState.StreamB.Position = 0;
 
-    using var originalPackage = new ExcelPackage(state.StreamB);
+    using var originalPackage = new ExcelPackage(_appState.StreamB);
     using var outputPackage = new ExcelPackage();
 
     foreach (var wsOriginal in originalPackage.Workbook.Worksheets)
@@ -52,7 +52,7 @@ app.MapGet("/download/baseb/xlsx", async (AppState state) =>
         var nomeAba = Helpers.Normalize(wsOriginal.Name);
 
         // 🔹 existe alinhamento salvo?
-        if (state.MapeamentosPorAba.TryGetValue(nomeAba, out var dadosAba))
+        if (_appState.MapeamentosPorAba.TryGetValue(nomeAba, out var dadosAba))
         {
             var wsOut = outputPackage.Workbook.Worksheets.Add(wsOriginal.Name);
 
@@ -83,13 +83,36 @@ app.MapGet("/download/baseb/xlsx", async (AppState state) =>
                         colunaOrigem = mapped;
                     }
 
-                    row.Campos.TryGetValue(colunaOrigem, out var valor);
+                    string valorFinal = "";
 
-                    wsOut.Cells[r + 2, c + 1].Value = valor ?? "";
+                    // 🔹 valor vindo da Base A
+                    if (dadosAba.ColunasFixasDaBaseA.TryGetValue(colunaA, out var colunaBaseA)
+                        && !string.IsNullOrWhiteSpace(colunaBaseA))
+                    {
+                        if (r < _appState.BaseA.Count)
+                        {
+                            _appState.BaseA[r].Campos.TryGetValue(colunaBaseA, out valorFinal);
+                        }
+                    }
+
+                    // 🔹 valor fixo manual
+                    else if (dadosAba.ValoresFixos.TryGetValue(colunaA, out var valorFixo)
+                             && !string.IsNullOrWhiteSpace(valorFixo))
+                    {
+                        valorFinal = valorFixo;
+                    }
+
+                    // 🔹 valor normal da Base B
+                    else
+                    {
+                        row.Campos.TryGetValue(colunaOrigem, out valorFinal);
+                    }
+
+                    wsOut.Cells[r + 2, c + 1].Value = valorFinal ?? "";
                 }
-            }
 
-            wsOut.Cells.AutoFitColumns();
+                wsOut.Cells.AutoFitColumns();
+            }
         }
         else
         {
@@ -117,8 +140,8 @@ app.MapGet("/download/baseb/xlsx", async (AppState state) =>
 
     var bytes = outputPackage.GetAsByteArray();
 
-    var name = state.NomeArquivoExportacao
-               ?? state.NomeArquivoA
+    var name = _appState.NomeArquivoExportacao
+               ?? _appState.NomeArquivoA
                ?? "baseb";
 
     var baseName = Path.GetFileNameWithoutExtension(name);

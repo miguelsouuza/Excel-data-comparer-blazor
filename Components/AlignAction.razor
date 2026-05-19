@@ -30,43 +30,67 @@
 
     private async Task ExecuteAlign()
     {
-        if (isProcessing) return;
+        if (isProcessing)
+            return;
         isProcessing = true;
 
         try
         {
-            var result = _autoMappingService.AlinharBaseB(BaseA, BaseB);
+            var ar = _autoMappingService.AlinharBaseB(BaseA, BaseB);
+            var headersA =
+            BaseA?.FirstOrDefault()?.Campos.Keys.ToList()
+            ?? new List<string>();
 
-            var headersA = BaseA?.FirstOrDefault()?.Campos.Keys.ToList() ?? new List<string>();
-            var headersB = BaseB?.FirstOrDefault()?.Campos.Keys.ToList() ?? new List<string>();
+            var headersB =
+                BaseB?.FirstOrDefault()?.Campos.Keys.ToList()
+                ?? new List<string>();
 
-            var ar = new AlignmentResult
-            {
-                Alinhada = result.Alinhada,
-                Mapeamento = result.Mapeamento,
-                HeadersA = headersA,
-                HeadersB = headersB
-            };
+            ar.HeadersA = headersA;
+            ar.HeadersB = headersB;
 
-            var mappedValues = result.Mapeamento.Values.Where(v => !string.IsNullOrWhiteSpace(v)).ToList();
-
-            ar.Renomeadas = result.Mapeamento
-                .Where(kv => !string.IsNullOrWhiteSpace(kv.Value) && !string.Equals(kv.Key, kv.Value, System.StringComparison.OrdinalIgnoreCase))
-                .Select(kv => (kv.Key, kv.Value)).ToList();
-
-            ar.Mantidas = result.Mapeamento
-                .Where(kv => !string.IsNullOrWhiteSpace(kv.Value) && string.Equals(kv.Key, kv.Value, System.StringComparison.OrdinalIgnoreCase))
-                .Select(kv => kv.Key).ToList();
-
-            ar.Removidas = headersB
-                .Where(h => !mappedValues.Any(v => string.Equals(v, h, System.StringComparison.OrdinalIgnoreCase))
-                            && !headersA.Any(a => string.Equals(a, h, System.StringComparison.OrdinalIgnoreCase)))
+            var mappedValues = ar.Mapeamento.Values
+                .Where(v => !string.IsNullOrWhiteSpace(v))
                 .ToList();
 
-            // incluir lista de colunas que foram adicionadas/implantadas na Base B
+            ar.Renomeadas = ar.Mapeamento
+                .Where(kv =>
+                    !string.IsNullOrWhiteSpace(kv.Value)
+                    && !string.Equals(
+                        kv.Key,
+                        kv.Value,
+                        StringComparison.OrdinalIgnoreCase))
+                .Select(kv => (kv.Key, kv.Value))
+                .ToList();
+
+            ar.Mantidas = ar.Mapeamento
+                .Where(kv =>
+                    !string.IsNullOrWhiteSpace(kv.Value)
+                    && string.Equals(
+                        kv.Key,
+                        kv.Value,
+                        StringComparison.OrdinalIgnoreCase))
+                .Select(kv => kv.Key)
+                .ToList();
+
+            ar.Removidas = headersB
+                .Where(h =>
+                    !mappedValues.Any(v =>
+                        string.Equals(v, h, StringComparison.OrdinalIgnoreCase))
+                    &&
+                    !headersA.Any(a =>
+                        string.Equals(a, h, StringComparison.OrdinalIgnoreCase)))
+                .ToList();
+
             ar.Incluidas = headersA
-                .Where(h => !headersB.Any(b => string.Equals(b, h, System.StringComparison.OrdinalIgnoreCase)))
-                .Select(h => (ColunaA: h, FonteB: result.Mapeamento.TryGetValue(h, out var src) ? src : ""))
+                .Where(h =>
+                    !headersB.Any(b =>
+                        string.Equals(b, h, StringComparison.OrdinalIgnoreCase)))
+                .Select(h => (
+                    ColunaA: h,
+                    FonteB: ar.Mapeamento.TryGetValue(h, out var src)
+                        ? src
+                        : ""
+                ))
                 .ToList();
 
             if (OnCompleted.HasDelegate)

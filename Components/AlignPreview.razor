@@ -2,6 +2,7 @@
 @using Microsoft.AspNetCore.Components
 @using System.Linq
 @inject AppState _appState
+@inject IAutoMappingService _autoMappingService
 
 <MudPaper Class="pa-4">
     <MudPaper Class="d-flex justify-space-between flex-grow-1 gap-4 mb-4" Elevation="0">
@@ -139,7 +140,6 @@
 
         <div class="mt-3">
             <MudPaper Class="pa-3 mt-4">
-
                 <MudText Typo="Typo.subtitle2" Class="mb-2">
                     Nome do arquivo exportado
                 </MudText>
@@ -151,6 +151,67 @@
                               Value="nomeArquivoExportacao"
                               Variant="Variant.Outlined" />
             </MudPaper>
+
+            @if (colunasNovas.Any())
+            {
+                <MudPaper Class="pa-3 mt-4">
+
+                    <MudText Typo="Typo.h6">
+                        Preenchimento de novas colunas
+                    </MudText>
+
+                    @foreach (var coluna in colunasNovas)
+                    {
+                        <MudDivider Class="my-2" />
+
+                        <MudText Typo="Typo.subtitle2">
+                            @coluna
+                        </MudText>
+
+                        <MudSelect T="string"
+                                   Label="Usar valor da coluna da Base A"
+                                   @bind-Value="colunasFixasDaBaseA[coluna]">
+
+                            <MudSelectItem T="string">
+                                Nenhum
+                            </MudSelectItem>
+
+                            @foreach (var colA in headersAAtual)
+                            {
+                                <MudSelectItem T="string" Value="@colA">
+                                    @colA
+                                </MudSelectItem>
+                            }
+                        </MudSelect>
+
+                        <MudSelect T="string"
+                                   Label="Usar valor da coluna da Base B"
+                                   @bind-Value="colunasDaBaseB[coluna]">
+
+                            <MudSelectItem T="string">
+                                Nenhum
+                            </MudSelectItem>
+
+                            @foreach (var colB in headersBAtual)
+                            {
+                                <MudSelectItem T="string" Value="@colB">
+                                    @colB
+                                </MudSelectItem>
+                            }
+                        </MudSelect>
+
+
+                        <MudTextField T="string"
+                                      Label="Ou usar valor fixo"
+                                      @bind-Value="valoresFixos[coluna]"
+                                      Immediate="true" />
+
+                        <MudTextField T="string"
+                                      Label="Template personalizado"
+                                      @bind-Value="templatesPersonalizados[coluna]" />
+                    }
+                </MudPaper>
+            }
             <ExportComponent Disabled="buttonExportDisabled" />
         </div>
 
@@ -196,6 +257,12 @@
     [Parameter]
     public EventCallback OnClose { get; set; }
 
+    private Dictionary<string, string> colunasDaBaseB = new();
+    private Dictionary<string, string> colunasFixasDaBaseA = new();
+    private Dictionary<string, string> valoresFixos = new();
+    private List<string> colunasNovas = new();
+    private Dictionary<string, string> templatesPersonalizados = new();
+
     private bool buttonExportDisabled = true;
     private bool textDisabled = false;
     private bool nomeInicializado = false;
@@ -218,6 +285,33 @@
                 Path.GetFileNameWithoutExtension(_appState.NomeArquivoA);
 
             nomeInicializado = true;
+        }
+
+        colunasNovas = headersAAtual
+            .Where(h =>
+                !headersBAtual.Any(x =>
+                    x.Equals(h, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+
+        foreach (var coluna in colunasNovas)
+        {
+            if (!colunasFixasDaBaseA.ContainsKey(coluna))
+            {
+                colunasFixasDaBaseA[coluna] = "";
+            }
+
+            if (!valoresFixos.ContainsKey(coluna))
+            {
+                valoresFixos[coluna] = "";
+            }
+            if (!templatesPersonalizados.ContainsKey(coluna))
+            {
+                templatesPersonalizados[coluna] = "";
+            }
+            if (!colunasDaBaseB.ContainsKey(coluna))
+            {
+                colunasDaBaseB[coluna] = "";
+            }
         }
     }
 
@@ -279,12 +373,15 @@
             HeadersB = headersBAtual?.ToList() ?? new(),
 
             Mapping = Result.Mapeamento != null
-                ? new Dictionary<string, string>(Result.Mapeamento)
-                : new(),
+         ? new Dictionary<string, string>(Result.Mapeamento)
+         : new(),
 
-            Registros = Result.Alinhada != null
-                ? Result.Alinhada.ToList()
-                : new()
+            Registros = AplicarValoresCustomizados(),
+            ColunasFixasDaBaseA =
+         new Dictionary<string, string>(colunasFixasDaBaseA),
+
+            ValoresFixos =
+         new Dictionary<string, string>(valoresFixos)
         };
 
         // 🔹 estado global
@@ -295,9 +392,86 @@
         textDisabled = true;
         StateHasChanged();
 
+        var novoResultado = _autoMappingService.AlinharBaseB(
+                _appState.BaseA,
+                _appState.BaseB,
+                colunasFixasDaBaseA,
+                valoresFixos
+            );
+
+        Result = novoResultado;
+
         if (OnConfirmed.HasDelegate)
             await OnConfirmed.InvokeAsync();
 
+    }
+
+
+    private List<GenericRegistration> AplicarValoresCustomizados()
+    {
+        var registros = Result.Alinhada
+            .Select(r => new GenericRegistration
+            {
+                Campos = new Dictionary<string, string>(r.Campos)
+            })
+            .ToList();
+
+        foreach (var row in registros.ToList())
+        {
+            foreach (var coluna in colunasNovas)
+            {
+                // template personalizado
+                if (templatesPersonalizados.TryGetValue(coluna, out var template)
+                    && !string.IsNullOrWhiteSpace(template))
+                {
+                    var valorProcessado = template;
+
+                    // substituir valores da linha
+                    foreach (var campo in row.Campos)
+                    {
+                        valorProcessado = valorProcessado.Replace(
+                            $"{{{campo.Key}}}",
+                            campo.Value ?? "");
+                    }
+
+                    row.Campos[coluna] = valorProcessado;
+                }
+
+                // valor fixo
+                if (valoresFixos.TryGetValue(coluna, out var valorFixo)
+                    && !string.IsNullOrWhiteSpace(valorFixo))
+                {
+                    row.Campos[coluna] = valorFixo;
+                }
+
+                // copiar valor de outra coluna
+                else if (colunasFixasDaBaseA.TryGetValue(coluna, out var colunaOrigem)
+                && !string.IsNullOrWhiteSpace(colunaOrigem))
+                {
+                    row.Campos[coluna] =
+                        row.Campos.ContainsKey(colunaOrigem)
+                            ? row.Campos[colunaOrigem] ?? ""
+                            : "";
+                }
+                // copiar valor de coluna da Base B
+                else if (colunasDaBaseB.TryGetValue(coluna, out var colunaB)
+                && !string.IsNullOrWhiteSpace(colunaB))
+                {
+                    row.Campos[coluna] =
+                        row.Campos.ContainsKey(colunaB)
+                            ? row.Campos[colunaB] ?? ""
+                            : "";
+                }
+
+                // fallback
+                else if (!row.Campos.ContainsKey(coluna))
+                {
+                    row.Campos[coluna] = "";
+                }
+            }
+        }
+
+        return registros;
     }
 
 }
