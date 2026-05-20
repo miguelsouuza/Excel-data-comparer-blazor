@@ -14,6 +14,10 @@
 
         public Dictionary<string, string> ColunasFixasDaBaseA { get; set; } = new();
 
+        public Dictionary<string, string> ColunasFixasDaBaseB { get; set; } = new();
+
         public Dictionary<string, string> ValoresFixos { get; set; } = new();
+
+        public Dictionary<string, string> TemplatesPersonalizados { get; set; } = new();
     }
 }

@@ -1,13 +1,25 @@
 @using DataComparer.Models
 @using Microsoft.AspNetCore.Components
 @using System.Linq
-@inject AppState _appState
+
+@inject IAppState _appState
 @inject IAutoMappingService _autoMappingService
 
 <MudPaper Class="pa-4">
-    <MudPaper Class="d-flex justify-space-between flex-grow-1 gap-4 mb-4" Elevation="0">
-        <MudText Typo="Typo.h6">Resultados do Alinhamento</MudText>
-        <MudIconButton Class="mapping-close " Color="Color.Default" Size="Size.Small" Icon="@Icons.Material.Filled.Close" OnClick="Close"></MudIconButton>
+
+    <!-- HEADER -->
+    <MudPaper Class="d-flex justify-space-between flex-grow-1 gap-4 mb-4"
+              Elevation="0">
+
+        <MudText Typo="Typo.h6">
+            Resultados do Alinhamento
+        </MudText>
+
+        <MudIconButton Class="mapping-close"
+                       Color="Color.Default"
+                       Size="Size.Small"
+                       Icon="@Icons.Material.Filled.Close"
+                       OnClick="Close" />
     </MudPaper>
 
     @if (Result == null)
@@ -16,103 +28,155 @@
     }
     else
     {
+        <!-- RESUMO -->
         <MudGrid>
+
+            <!-- RENOMEADAS -->
             <MudItem xs="12" md="4">
                 <MudPaper Class="pa-3">
-                    <MudText Typo="Typo.subtitle2">Renomeadas</MudText>
+
+                    <MudText Typo="Typo.subtitle2">
+                        Renomeadas
+                    </MudText>
+
                     @if (Result.Renomeadas.Any())
                     {
                         <MudList Dense="true" T="string">
+
                             @foreach (var r in Result.Renomeadas)
                             {
                                 <MudListItem>
                                     @r.ColunaA -> @r.ColunaB
                                 </MudListItem>
                             }
+
                         </MudList>
                     }
                     else
                     {
                         <div>—</div>
                     }
+
                 </MudPaper>
             </MudItem>
 
+            <!-- MANTIDAS -->
             <MudItem xs="12" md="4">
                 <MudPaper Class="pa-3">
-                    <MudText Typo="Typo.subtitle2">Mantidas</MudText>
+
+                    <MudText Typo="Typo.subtitle2">
+                        Mantidas
+                    </MudText>
+
                     @if (Result.Mantidas.Any())
                     {
                         <MudList Dense="true" T="string">
+
                             @foreach (var m in Result.Mantidas)
                             {
                                 <MudListItem>
                                     @m
                                 </MudListItem>
                             }
+
                         </MudList>
                     }
                     else
                     {
                         <div>—</div>
                     }
+
                 </MudPaper>
             </MudItem>
 
+            <!-- REMOVIDAS -->
             <MudItem xs="12" md="4">
                 <MudPaper Class="pa-3">
-                    <MudText Typo="Typo.subtitle2">Removidas</MudText>
+
+                    <MudText Typo="Typo.subtitle2">
+                        Removidas
+                    </MudText>
+
                     @if (Result.Removidas.Any())
                     {
                         <MudList Dense="true" T="string">
+
                             @foreach (var rm in Result.Removidas)
                             {
                                 <MudListItem>
                                     @rm
                                 </MudListItem>
                             }
+
                         </MudList>
                     }
                     else
                     {
                         <div>—</div>
                     }
+
                 </MudPaper>
             </MudItem>
+
         </MudGrid>
 
+        <!-- PREVIEW -->
         <div class="mt-3">
-            <MudText Typo="Typo.subtitle2">Preview (primeiras 10 linhas)</MudText>
+
+            <MudText Typo="Typo.subtitle2">
+                Preview (primeiras 10 linhas)
+            </MudText>
 
             @if (Result.Alinhada.Any())
             {
-                var headers = Result.Alinhada.First().Campos.Keys.ToList();
+                var headers = Result.Alinhada
+                    .First()
+                    .Campos
+                    .Keys
+                    .ToList();
 
-                <MudTable Items="Result.Alinhada.Take(10)" Dense="true" Bordered="true" Hover="true">
+                <MudTable Items="Result.Alinhada.Take(10)"
+                          Dense="true"
+                          Bordered="true"
+                          Hover="true">
+
                     <HeaderContent>
+
                         @foreach (var h in headers)
                         {
                             <MudTh>@h</MudTh>
                         }
+
                     </HeaderContent>
 
                     <RowTemplate Context="row">
+
                         @foreach (var h in headers)
                         {
-                            <MudTd>@row.Campos[h]</MudTd>
+                            <MudTd>
+                                @row.Campos[h]
+                            </MudTd>
                         }
+
                     </RowTemplate>
+
                 </MudTable>
             }
             else
             {
                 <div>Nenhuma linha para mostrar</div>
             }
+
         </div>
+
+        <!-- CSV -->
         <MudPaper Class="pa-3 mt-4">
 
-            <MudText Typo="Typo.subtitle2" Class="mb-2">
+            <MudText Typo="Typo.subtitle2"
+                     Class="mb-2">
+
                 Delimitador CSV
+
             </MudText>
 
             <MudSelect T="string"
@@ -135,23 +199,34 @@
                 <MudSelectItem T="string" Value="@TAB">
                     Tabulação (\t)
                 </MudSelectItem>
+
             </MudSelect>
+
         </MudPaper>
 
+        <!-- NOME -->
         <div class="mt-3">
+
             <MudPaper Class="pa-3 mt-4">
-                <MudText Typo="Typo.subtitle2" Class="mb-2">
+
+                <MudText Typo="Typo.subtitle2"
+                         Class="mb-2">
+
                     Nome do arquivo exportado
+
                 </MudText>
+
                 <MudTextField T="string"
                               Disabled="textDisabled"
                               Label="Nome do arquivo"
                               Immediate="true"
-                              ValueChanged="OnNomeChanged"
                               Value="nomeArquivoExportacao"
+                              ValueChanged="OnNomeChanged"
                               Variant="Variant.Outlined" />
+
             </MudPaper>
 
+            <!-- NOVAS COLUNAS -->
             @if (colunasNovas.Any())
             {
                 <MudPaper Class="pa-3 mt-4">
@@ -168,8 +243,10 @@
                             @coluna
                         </MudText>
 
+                        <!-- COLUNA BASE A -->
                         <MudSelect T="string"
-                                   Label="Usar valor da coluna da Base A"
+                                   Disabled="textDisabled"
+                                   Label="Usar coluna da Base A"
                                    @bind-Value="colunasFixasDaBaseA[coluna]">
 
                             <MudSelectItem T="string">
@@ -178,15 +255,21 @@
 
                             @foreach (var colA in headersAAtual)
                             {
-                                <MudSelectItem T="string" Value="@colA">
+                                <MudSelectItem T="string"
+                                               Value="@colA">
+
                                     @colA
+
                                 </MudSelectItem>
                             }
+
                         </MudSelect>
 
+                        <!-- COLUNA BASE B -->
                         <MudSelect T="string"
-                                   Label="Usar valor da coluna da Base B"
-                                   @bind-Value="colunasDaBaseB[coluna]">
+                                   Disabled="textDisabled"
+                                   Label="Usar coluna da Base B"
+                                   @bind-Value="colunasFixasDaBaseB[coluna]">
 
                             <MudSelectItem T="string">
                                 Nenhum
@@ -194,50 +277,76 @@
 
                             @foreach (var colB in headersBAtual)
                             {
-                                <MudSelectItem T="string" Value="@colB">
+                                <MudSelectItem T="string"
+                                               Value="@colB">
+
                                     @colB
+
                                 </MudSelectItem>
                             }
+
                         </MudSelect>
 
-
+                        <!-- VALOR FIXO -->
                         <MudTextField T="string"
-                                      Label="Ou usar valor fixo"
+                                      Disabled="textDisabled"
+                                      Label="Valor fixo"
                                       @bind-Value="valoresFixos[coluna]"
                                       Immediate="true" />
 
+                        <!-- TEMPLATE -->
                         <MudTextField T="string"
+                                      Disabled="textDisabled"
                                       Label="Template personalizado"
-                                      @bind-Value="templatesPersonalizados[coluna]" />
+                                      HelperText="Exemplo: {SETOR} - {EMAIL}"
+                                      @bind-Value="templatesPersonalizados[coluna]"
+                                      Immediate="true" />
                     }
+
                 </MudPaper>
             }
+
+            <!-- EXPORT -->
             <ExportComponent Disabled="buttonExportDisabled" />
+
         </div>
 
-        <div class="d-flex justify-content-end mt-3">
+        <!-- BOTÕES -->
+        <div class="d-flex justify-content-end mt-3 gap-2">
 
-            <MudButton Color="Color.Success" OnClick="Confirm">Confirmar e usar este resultado</MudButton>
-            <div>
-                @if (buttonCancelEnabled)
-                {
-                    <MudButton Color="Color.Error"
-                               Variant="Variant.Outlined"
-                               OnClick="CancelarConfirmacao">
-                        Cancelar confirmação
-                    </MudButton>
-                }
-            </div>
+            <MudButton Color="Color.Success"
+                       Disabled="textDisabled"
+                       OnClick="Confirm">
+
+                Confirmar e usar este resultado
+
+            </MudButton>
+
+            @if (buttonCancelEnabled)
+            {
+                <MudButton Color="Color.Error"
+                           Variant="Variant.Outlined"
+                           OnClick="CancelarConfirmacao">
+
+                    Cancelar confirmação
+
+                </MudButton>
+            }
+
         </div>
     }
 </MudPaper>
 
 @code {
+
     [Parameter]
     public AlignmentResult Result { get; set; }
 
     [Parameter]
     public EventCallback OnConfirmed { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
 
     [Parameter]
     public string abaSelecionadaA { get; set; }
@@ -254,14 +363,12 @@
     [Parameter]
     public Dictionary<string, string> mappingAtual { get; set; }
 
-    [Parameter]
-    public EventCallback OnClose { get; set; }
-
-    private Dictionary<string, string> colunasDaBaseB = new();
     private Dictionary<string, string> colunasFixasDaBaseA = new();
+    private Dictionary<string, string> colunasFixasDaBaseB = new();
     private Dictionary<string, string> valoresFixos = new();
-    private List<string> colunasNovas = new();
     private Dictionary<string, string> templatesPersonalizados = new();
+
+    private List<string> colunasNovas = new();
 
     private bool buttonExportDisabled = true;
     private bool textDisabled = false;
@@ -270,19 +377,19 @@
 
     private string nomeArquivoExportacao = "";
     private string delimitadorCsv = ";";
+
     private const string TAB = "\t";
     private const string virgula = ",";
     private const string pipe = "|";
     private const string pontoVirgula = ";";
-
-
 
     protected override void OnParametersSet()
     {
         if (!nomeInicializado)
         {
             nomeArquivoExportacao =
-                Path.GetFileNameWithoutExtension(_appState.NomeArquivoA);
+                Path.GetFileNameWithoutExtension(
+                    _appState.NomeArquivoA);
 
             nomeInicializado = true;
         }
@@ -290,35 +397,90 @@
         colunasNovas = headersAAtual
             .Where(h =>
                 !headersBAtual.Any(x =>
-                    x.Equals(h, StringComparison.OrdinalIgnoreCase)))
+                    x.Equals(h,
+                        StringComparison.OrdinalIgnoreCase)))
             .ToList();
 
         foreach (var coluna in colunasNovas)
         {
             if (!colunasFixasDaBaseA.ContainsKey(coluna))
-            {
                 colunasFixasDaBaseA[coluna] = "";
-            }
+
+            if (!colunasFixasDaBaseB.ContainsKey(coluna))
+                colunasFixasDaBaseB[coluna] = "";
 
             if (!valoresFixos.ContainsKey(coluna))
-            {
                 valoresFixos[coluna] = "";
-            }
+
             if (!templatesPersonalizados.ContainsKey(coluna))
-            {
                 templatesPersonalizados[coluna] = "";
-            }
-            if (!colunasDaBaseB.ContainsKey(coluna))
-            {
-                colunasDaBaseB[coluna] = "";
-            }
         }
+    }
+
+    private void OnNomeChanged(string value)
+    {
+        nomeArquivoExportacao = value;
+        _appState.NomeArquivoExportacao = value;
+        StateHasChanged();
+    }
+
+    private async Task Confirm()
+    {
+        if (Result == null)
+            return;
+
+        var registrosCustomizados =
+            AplicarValoresCustomizados();
+
+        Result.Alinhada = registrosCustomizados;
+
+        var keyB = Helpers.Normalize(abaSelecionadaB);
+
+        _appState.MapeamentosPorAba[keyB] = new SheetMapping
+        {
+            NomeAbaA = abaSelecionadaA,
+            NomeAbaB = abaSelecionadaB,
+
+            HeadersA = headersAAtual?.ToList() ?? new(),
+            HeadersB = headersBAtual?.ToList() ?? new(),
+
+            Mapping = Result.Mapeamento != null
+                ? new Dictionary<string, string>(Result.Mapeamento)
+                : new(),
+
+            Registros = registrosCustomizados,
+
+            ColunasFixasDaBaseA =
+                new Dictionary<string, string>(colunasFixasDaBaseA),
+
+            ColunasFixasDaBaseB =
+                new Dictionary<string, string>(colunasFixasDaBaseB),
+
+            ValoresFixos =
+                new Dictionary<string, string>(valoresFixos),
+
+            TemplatesPersonalizados =
+                new Dictionary<string, string>(templatesPersonalizados)
+        };
+
+        _appState.DelimitadorCsv = delimitadorCsv;
+        _appState.NomeArquivoExportacao = nomeArquivoExportacao;
+
+        buttonExportDisabled = false;
+        textDisabled = true;
+        buttonCancelEnabled = true;
+
+        StateHasChanged();
+
+        if (OnConfirmed.HasDelegate)
+            await OnConfirmed.InvokeAsync();
     }
 
     private void CancelarConfirmacao()
     {
-        buttonCancelEnabled = false;
+        buttonExportDisabled = true;
         textDisabled = false;
+        buttonCancelEnabled = false;
 
         var keyB = Helpers.Normalize(abaSelecionadaB);
 
@@ -330,18 +492,9 @@
         StateHasChanged();
     }
 
-    private void OnNomeChanged(string value)
-    {
-        nomeArquivoExportacao = value;
-        _appState.NomeArquivoExportacao = value;
-
-        StateHasChanged();
-    }
-
     private async Task Close()
     {
-        // reset local confirmed state
-        buttonExportDisabled = false;
+        buttonExportDisabled = true;
         textDisabled = false;
 
         StateHasChanged();
@@ -349,63 +502,6 @@
         if (OnClose.HasDelegate)
             await OnClose.InvokeAsync();
     }
-
-    private async Task Confirm()
-    {
-        if (Result == null)
-            return;
-
-        if (string.IsNullOrWhiteSpace(abaSelecionadaA)
-            || string.IsNullOrWhiteSpace(abaSelecionadaB))
-        {
-            return;
-        }
-        // 🔹 chave única da aba B
-        string keyB = Helpers.Normalize(abaSelecionadaB);
-
-        // 🔹 salva tudo diretamente no dictionary
-        _appState.MapeamentosPorAba[keyB] = new SheetMapping
-        {
-            NomeAbaA = abaSelecionadaA,
-            NomeAbaB = abaSelecionadaB,
-
-            HeadersA = headersAAtual?.ToList() ?? new(),
-            HeadersB = headersBAtual?.ToList() ?? new(),
-
-            Mapping = Result.Mapeamento != null
-         ? new Dictionary<string, string>(Result.Mapeamento)
-         : new(),
-
-            Registros = AplicarValoresCustomizados(),
-            ColunasFixasDaBaseA =
-         new Dictionary<string, string>(colunasFixasDaBaseA),
-
-            ValoresFixos =
-         new Dictionary<string, string>(valoresFixos)
-        };
-
-        // 🔹 estado global
-        _appState.DelimitadorCsv = delimitadorCsv;
-        _appState.NomeArquivoExportacao = nomeArquivoExportacao;
-
-        buttonExportDisabled = false;
-        textDisabled = true;
-        StateHasChanged();
-
-        var novoResultado = _autoMappingService.AlinharBaseB(
-                _appState.BaseA,
-                _appState.BaseB,
-                colunasFixasDaBaseA,
-                valoresFixos
-            );
-
-        Result = novoResultado;
-
-        if (OnConfirmed.HasDelegate)
-            await OnConfirmed.InvokeAsync();
-
-    }
-
 
     private List<GenericRegistration> AplicarValoresCustomizados()
     {
@@ -416,55 +512,64 @@
             })
             .ToList();
 
-        foreach (var row in registros.ToList())
+        foreach (var row in registros)
         {
             foreach (var coluna in colunasNovas)
             {
-                // template personalizado
+                // TEMPLATE
                 if (templatesPersonalizados.TryGetValue(coluna, out var template)
                     && !string.IsNullOrWhiteSpace(template))
                 {
                     var valorProcessado = template;
 
-                    // substituir valores da linha
                     foreach (var campo in row.Campos)
                     {
-                        valorProcessado = valorProcessado.Replace(
-                            $"{{{campo.Key}}}",
-                            campo.Value ?? "");
+                        valorProcessado =
+                            valorProcessado.Replace(
+                                $"{{{campo.Key}}}",
+                                campo.Value ?? "");
                     }
 
                     row.Campos[coluna] = valorProcessado;
+
+                    continue;
                 }
 
-                // valor fixo
+                // VALOR FIXO
                 if (valoresFixos.TryGetValue(coluna, out var valorFixo)
                     && !string.IsNullOrWhiteSpace(valorFixo))
                 {
                     row.Campos[coluna] = valorFixo;
+
+                    continue;
                 }
 
-                // copiar valor de outra coluna
-                else if (colunasFixasDaBaseA.TryGetValue(coluna, out var colunaOrigem)
-                && !string.IsNullOrWhiteSpace(colunaOrigem))
+                // BASE A
+                if (colunasFixasDaBaseA.TryGetValue(coluna, out var colunaA)
+                    && !string.IsNullOrWhiteSpace(colunaA))
                 {
-                    row.Campos[coluna] =
-                        row.Campos.ContainsKey(colunaOrigem)
-                            ? row.Campos[colunaOrigem] ?? ""
-                            : "";
-                }
-                // copiar valor de coluna da Base B
-                else if (colunasDaBaseB.TryGetValue(coluna, out var colunaB)
-                && !string.IsNullOrWhiteSpace(colunaB))
-                {
-                    row.Campos[coluna] =
-                        row.Campos.ContainsKey(colunaB)
-                            ? row.Campos[colunaB] ?? ""
-                            : "";
+                    if (row.Campos.TryGetValue(colunaA, out var valorA))
+                    {
+                        row.Campos[coluna] = valorA ?? "";
+                    }
+
+                    continue;
                 }
 
-                // fallback
-                else if (!row.Campos.ContainsKey(coluna))
+                // BASE B
+                if (colunasFixasDaBaseB.TryGetValue(coluna, out var colunaB)
+                    && !string.IsNullOrWhiteSpace(colunaB))
+                {
+                    if (row.Campos.TryGetValue(colunaB, out var valorB))
+                    {
+                        row.Campos[coluna] = valorB ?? "";
+                    }
+
+                    continue;
+                }
+
+                // FALLBACK
+                if (!row.Campos.ContainsKey(coluna))
                 {
                     row.Campos[coluna] = "";
                 }
@@ -473,5 +578,4 @@
 
         return registros;
     }
-
 }

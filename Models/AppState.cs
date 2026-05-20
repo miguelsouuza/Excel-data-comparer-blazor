@@ -1,6 +1,6 @@
 ﻿using DataComparer.Models;
 
-public class AppState
+public class AppState : IAppState
 {
     public List<GenericRegistration> BaseA { get; set; } = new();
 
@@ -32,6 +32,7 @@ public class AppState
 
     public string NomeArquivoExportacao { get; set; } = string.Empty;
 
-    // 🔹 MULTI-ABA
     public Dictionary<string, SheetMapping> MapeamentosPorAba { get; set; } = new();
+
+    public List<ValidationIssue> ValidationIssues { get; set; } = new();
 }

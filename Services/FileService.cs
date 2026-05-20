@@ -159,27 +159,69 @@ namespace DataComparer.Services
             return s;
         }
 
-        public byte[] GerarExcelBytes(List<GenericRegistration> baseDados)
+        public byte[] GerarExcelBytes(
+    Dictionary<string, SheetMapping> mapeamentosPorAba,
+    string nomeArquivo)
         {
-            if (baseDados == null || !baseDados.Any())
-                return Array.Empty<byte>();
-
             using var package = new ExcelPackage();
 
-            var ws = package.Workbook.Worksheets.Add("Sheet1");
-
-            var headers = baseDados.First().Campos.Keys.ToList();
-            for (int c = 0; c < headers.Count; c++)
-                ws.Cells[1, c + 1].Value = headers[c];
-
-            for (int r = 0; r < baseDados.Count; r++)
+            foreach (var item in mapeamentosPorAba)
             {
-                var row = baseDados[r];
+                var aba = item.Value;
+                if (aba == null)
+                    continue;
+
+                if (aba.Registros == null || !aba.Registros.Any())
+                    continue;
+
+                var nomeAba = string.IsNullOrWhiteSpace(aba.NomeAbaB) ? "Planilha" : aba.NomeAbaB;
+
+                // Excel limita em 31 chars
+                if (nomeAba.Length > 31)
+                    nomeAba = nomeAba.Substring(0, 31);
+
+                var ws = package.Workbook.Worksheets.Add(nomeAba);
+
+                //------------------------------------------------
+                // HEADERS
+                //------------------------------------------------
+                var headers = aba.HeadersA?.Distinct().ToList() ?? new List<string>();
+
                 for (int c = 0; c < headers.Count; c++)
                 {
-                    row.Campos.TryGetValue(headers[c], out var val);
-                    ws.Cells[r + 2, c + 1].Value = val ?? string.Empty;
+                    ws.Cells[1, c + 1].Value = headers[c];
+
+                    ws.Cells[1, c + 1].Style.Font.Bold = true;
                 }
+
+                //------------------------------------------------
+                // LINHAS
+                //------------------------------------------------
+                for (int r = 0; r < aba.Registros.Count; r++)
+                {
+                    var row = aba.Registros[r];
+
+                    for (int c = 0; c < headers.Count; c++)
+                    {
+                        var coluna = headers[c];
+
+                        row.Campos.TryGetValue(
+                            coluna,
+                            out var valor);
+
+                        ws.Cells[r + 2, c + 1].Value =  valor ?? "";
+                    }
+                }
+                ws.Cells.AutoFitColumns();
+            }
+            //------------------------------------------------
+            // FALLBACK
+            //------------------------------------------------
+            if (package.Workbook.Worksheets.Count == 0)
+            {
+                var ws = package.Workbook.Worksheets.Add("Vazio");
+
+                ws.Cells[1, 1].Value = "Nenhum dado encontrado";
             }
 
             return package.GetAsByteArray();

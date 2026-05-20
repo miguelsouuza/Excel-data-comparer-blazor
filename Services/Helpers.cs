@@ -137,6 +137,18 @@ namespace DataComparer.Services
 
             return candidate;
         }
+        public static bool PossuiMesmoPrefixo(string a, string b, int tamanho)
+        {
+            if (string.IsNullOrWhiteSpace(a) ||
+                string.IsNullOrWhiteSpace(b))
+                return false;
+
+            if (a.Length < tamanho || b.Length < tamanho)
+                return false;
+
+            return a.Substring(0, tamanho)
+                == b.Substring(0, tamanho);
+        }
     }
 
 }

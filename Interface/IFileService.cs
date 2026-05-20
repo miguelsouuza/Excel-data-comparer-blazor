@@ -12,5 +12,5 @@ internal interface IFileService
 
     byte[] GerarCsvBytes(List<GenericRegistration> baseDados, string delimitador = ";");
 
-    byte[] GerarExcelBytes(List<GenericRegistration> baseDados);
+    byte[] GerarExcelBytes(Dictionary<string, SheetMapping> mapeamentosPorAba, string nomeArquivo);
 }

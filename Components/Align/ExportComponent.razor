@@ -1,6 +1,7 @@
 @using Microsoft.AspNetCore.Components
-@inject NavigationManager nav
-@inject AppState _appState
+@inject IAppState _appState
+@inject IFileService _fileService
+@inject IJSRuntime JS
 
 <div class="mt-2">
     <MudStack Row="true" Spacing="1" Class="mt-2">
@@ -10,10 +11,10 @@
         </MudButton>
         @* <MudButton Color="Color.Primary" Disabled="!Enabled" OnClick="ExportCsv">Baixar CSV</MudButton> *@
         <MudButton Disabled="Disabled"
-                   OnClick="@(() => Baixar("xlsx"))">
+                   OnClick="@(() => BaixarXlsx())">
             Baixar XLSX
         </MudButton>
-            @* <MudButton Color="Color.Primary" Disabled="!Enabled" OnClick="ExportXlsx">Baixar XLSX</MudButton> *@
+        @* <MudButton Color="Color.Primary" Disabled="!Enabled" OnClick="ExportXlsx">Baixar XLSX</MudButton> *@
         <MudButton Disabled="Disabled"
                    OnClick="@(() => Baixar("json"))">
             Baixar CSV
@@ -39,7 +40,7 @@
         var url =
             $"/download/baseb/{tipo}?name={nome}&t={DateTime.Now.Ticks}";
 
-        nav.NavigateTo(url, true);
+        // nav.NavigateTo(url, true);
     }
     // private void ExportCsv()
     // {
@@ -62,5 +63,18 @@
     //     nav.NavigateTo($"/download/baseb/xlsx?name={nome}&t={DateTime.Now.Ticks}", true);
     //     // nav.NavigateTo($"/download/baseb/xlsx?name={nome}", true);
     // }
+    private async Task BaixarXlsx()
+    {
+        var bytes = _fileService.GerarExcelBytes(
+            _appState.MapeamentosPorAba,
+            _appState.NomeArquivoExportacao);
 
+        var base64 = Convert.ToBase64String(bytes);
+
+        await JS.InvokeVoidAsync(
+            "downloadFile",
+            $"{_appState.NomeArquivoExportacao}.xlsx",
+            base64,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    }
 }
